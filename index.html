@@ -1,0 +1,1229 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Simulador de Diagramas de Fases</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+/* Layout: cabecera → selector de sistema → banco de trabajo (diagrama | curva de enfriamiento | lectura) → paneles de referencia */
+:root{
+  --bg:#edf0f2; --surface:#ffffff; --surface-2:#f4f6f8; --ink:#17202a; --ink-2:#465361; --muted:#6f7d8b; --rule:#d3dae0; --rule-2:#e4e9ed;
+  --accent:#1d5fa8; --accent-ink:#ffffff; --accent-soft:rgba(29,95,168,.10);
+  --molten:#e5621b;
+  --c-liq:#b4225a; --c-sol:#1f72c0; --c-iso:#2b3a48; --c-solv:#7b4bb3; --c-trans:#0d8577; --c-lim:#8a96a3;
+  --z-liq:rgba(229,98,27,.14); --z-mix:rgba(229,98,27,.06); --z-s1:rgba(31,114,192,.08); --z-s2:rgba(43,58,72,.06); --z-s3:rgba(123,75,179,.08);
+  --f-display:"IBM Plex Sans Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f141a; --surface:#161d25; --surface-2:#1b232d; --ink:#e5eaef; --ink-2:#a9b5c1; --muted:#81909e; --rule:#2a3540; --rule-2:#222c36;
+    --accent:#6fa9f2; --accent-ink:#0b1420; --accent-soft:rgba(111,169,242,.15);
+    --molten:#ff8a3d;
+    --c-liq:#f0679a; --c-sol:#5fa8f5; --c-iso:#c9d3dc; --c-solv:#b28cf0; --c-trans:#3cc6b2; --c-lim:#6c7987;
+    --z-liq:rgba(255,138,61,.17); --z-mix:rgba(255,138,61,.07); --z-s1:rgba(95,168,245,.09); --z-s2:rgba(201,211,220,.05); --z-s3:rgba(178,140,240,.09);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f141a; --surface:#161d25; --surface-2:#1b232d; --ink:#e5eaef; --ink-2:#a9b5c1; --muted:#81909e; --rule:#2a3540; --rule-2:#222c36;
+  --accent:#6fa9f2; --accent-ink:#0b1420; --accent-soft:rgba(111,169,242,.15);
+  --molten:#ff8a3d;
+  --c-liq:#f0679a; --c-sol:#5fa8f5; --c-iso:#c9d3dc; --c-solv:#b28cf0; --c-trans:#3cc6b2; --c-lim:#6c7987;
+  --z-liq:rgba(255,138,61,.17); --z-mix:rgba(255,138,61,.07); --z-s1:rgba(95,168,245,.09); --z-s2:rgba(201,211,220,.05); --z-s3:rgba(178,140,240,.09);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1320px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:22px 48px;display:flex;flex-direction:column;gap:18px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-family:var(--f-mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--f-display);font-weight:700;font-size:clamp(30px,4.6vw,46px);line-height:1.02;margin:6px 0 8px;letter-spacing:-.01em;text-wrap:balance}
+.lede{margin:0;max-width:68ch;color:var(--ink-2)}
+.tabs{display:flex;gap:4px;margin-top:16px;border-bottom:1px solid var(--rule);flex-wrap:wrap}
+.tabs button{font:600 14px var(--f-body);color:var(--ink-2);background:none;border:0;padding:10px 14px;border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer;border-radius:6px 6px 0 0}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tabs button:hover{background:var(--surface-2)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.view{display:flex;flex-direction:column;gap:16px}
+.view[hidden]{display:none}
+.sysbar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+@media (max-width:820px){.sysbar{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:480px){.sysbtn{padding:8px 10px}.sysbtn b{font-size:18px}.sysbtn span{font-size:11.5px}}
+.sysbtn{text-align:left;background:var(--surface);border:1px solid var(--rule);border-radius:9px;padding:10px 14px;cursor:pointer;color:var(--ink);display:flex;flex-direction:column;gap:2px}
+.sysbtn b{font:700 21px var(--f-display);letter-spacing:.01em}
+.sysbtn span{font-size:12.5px;color:var(--ink-2);line-height:1.3}
+.sysbtn[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent)}
+.sysdesc{margin:0;color:var(--ink-2);max-width:95ch;font-size:14px}
+.panel{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:14px;min-width:0}
+.bench{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:14px;align-items:start}
+@media (max-width:1020px){.bench{grid-template-columns:minmax(0,1fr)}}
+.ctrls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 18px;margin-bottom:12px}
+.ctl{display:flex;flex-direction:column;gap:4px;min-width:0}
+.ctl label{font-size:12.5px;color:var(--ink-2);display:flex;justify-content:space-between;gap:8px}
+.ctl output{font-family:var(--f-mono);color:var(--ink);font-weight:500}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.btns{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{font:500 13.5px var(--f-body);padding:8px 13px;border-radius:7px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);cursor:pointer}
+.btn:hover{background:var(--surface-2)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn:disabled{opacity:.45;cursor:default}
+.sel{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink-2)}
+.sel select{font:13px var(--f-body);padding:6px 8px;border-radius:6px;border:1px solid var(--rule);background:var(--surface);color:var(--ink)}
+.chk{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink-2);cursor:pointer}
+.chk input{accent-color:var(--accent)}
+.plots{display:grid;grid-template-columns:minmax(0,1fr) minmax(150px,32%);gap:10px}
+.pl{min-width:0;display:flex;flex-direction:column;gap:4px}
+.pl-h{font:600 13px var(--f-display);letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2)}
+.pl-h .hint{text-transform:none;letter-spacing:0;font:400 12px var(--f-body);color:var(--muted)}
+svg.plot{width:100%;height:clamp(320px,58vh,520px);display:block;user-select:none;-webkit-user-select:none}
+#dg{cursor:crosshair;touch-action:pan-y;border-radius:4px}
+#dg:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (max-width:620px){
+  .plots{grid-template-columns:minmax(0,1fr)}
+  svg.plot{height:340px}
+  #cv{height:230px}
+  .ctrls{grid-template-columns:minmax(0,1fr)}
+}
+.note{margin:10px 0 0;font-size:12.5px;color:var(--muted);max-width:110ch}
+/* svg */
+.pbg{fill:var(--surface)}
+.axis{stroke:var(--ink-2);stroke-width:1}
+.grid{stroke:var(--rule-2);stroke-width:1}
+.gridk{stroke:var(--rule);stroke-width:1;stroke-dasharray:3 4}
+.tick{font:11px var(--f-mono);fill:var(--muted)}
+.tick.key{fill:var(--ink);font-weight:500}
+.axt{font:12px var(--f-body);fill:var(--ink-2)}
+.endl{font:600 11.5px var(--f-body);fill:var(--ink-2)}
+.rlabel{font:600 12.5px var(--f-display);fill:var(--ink-2);paint-order:stroke;stroke:var(--surface);stroke-width:3.5px;stroke-linejoin:round;letter-spacing:.02em;pointer-events:none}
+.ln{fill:none;stroke-width:2.2;stroke-linejoin:round;stroke-linecap:round;pointer-events:none;transition:stroke-width .15s}
+.ln.liq{stroke:var(--c-liq)} .ln.sol{stroke:var(--c-sol)} .ln.iso{stroke:var(--c-iso)} .ln.solv{stroke:var(--c-solv)} .ln.trans{stroke:var(--c-trans)} .ln.lim{stroke:var(--c-lim);stroke-dasharray:5 4;stroke-width:1.4}
+.ln.thin{stroke-width:1.4}
+.ln.on{stroke-width:4.6}
+.guide{stroke:var(--c-lim);stroke-dasharray:3 4;stroke-width:1;fill:none}
+.gtext{font:10.5px var(--f-body);fill:var(--muted)}
+.hit{fill:none;stroke:transparent;stroke-width:16;cursor:pointer}
+.kp{fill:var(--surface);stroke:var(--ink);stroke-width:1.6;cursor:pointer}
+.kp.on{fill:var(--accent);stroke:var(--accent)}
+.vline{stroke:var(--accent);stroke-width:1.2;stroke-dasharray:4 4}
+.hline{stroke:var(--ink-2);stroke-width:1;stroke-dasharray:2 4;opacity:.8}
+.tie{stroke:var(--ink);stroke-width:2.4}
+.drop{stroke:var(--ink-2);stroke-width:1;stroke-dasharray:3 3}
+.tend{fill:var(--ink)}
+.tlab{font:600 13px var(--f-body);fill:var(--ink);paint-order:stroke;stroke:var(--surface);stroke-width:3.5px}
+.tcomp{font:500 10.5px var(--f-mono);fill:var(--ink);paint-order:stroke;stroke:var(--surface);stroke-width:3px}
+.pt{fill:var(--accent);stroke:var(--surface);stroke-width:2.5}
+.ptl{font:700 14px var(--f-body);fill:var(--accent);paint-order:stroke;stroke:var(--surface);stroke-width:3.5px}
+.cpath{fill:none;stroke:var(--ink);stroke-width:2;stroke-linejoin:round}
+.cghost{fill:none;stroke:var(--rule);stroke-width:1.5}
+.evdot{fill:var(--surface);stroke:var(--ink);stroke-width:1.4}
+.evnum{font:600 9.5px var(--f-mono);fill:var(--ink);text-anchor:middle;dominant-baseline:central}
+.placeholder{font:13px var(--f-body);fill:var(--muted)}
+.ptitle{font:600 13px var(--f-display);letter-spacing:.05em;text-transform:uppercase;fill:var(--ink-2)}
+.ar-liq{fill:var(--c-liq)} .ar-sol{fill:var(--c-sol)} .ar-eut{fill:var(--c-iso)} .ar-pure{fill:var(--accent)}
+.proj{stroke:var(--muted);stroke-width:1;stroke-dasharray:3 4;opacity:.8}
+/* readout */
+.readout{display:flex;flex-direction:column;gap:10px}
+.ro-top{display:flex;flex-direction:column;gap:6px}
+.ro-coord{font:500 22px var(--f-mono);letter-spacing:-.01em}
+.chip{align-self:flex-start;font:600 13px var(--f-body);padding:4px 10px;border-radius:999px;border:1px solid var(--rule);background:var(--surface-2)}
+.chip.z-liq{background:var(--z-liq);border-color:transparent}
+.chip.z-mix{background:var(--z-mix);border-color:var(--rule)}
+.chip.z-s1{background:var(--z-s1);border-color:transparent}
+.chip.z-s2{background:var(--z-s2);border-color:var(--rule)}
+.chip.z-s3{background:var(--z-s3);border-color:transparent}
+.h3{font:600 12px var(--f-display);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:6px 0 0}
+.h2{font:700 20px var(--f-display);margin:0 0 10px;letter-spacing:.005em}
+.phases,.legend,.events{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px}
+.phases li{display:grid;grid-template-columns:14px minmax(0,1fr) auto auto;gap:4px 8px;align-items:center;font-size:13.5px}
+.phases .bar{grid-column:2/-1;height:5px;background:var(--surface-2);border-radius:3px;overflow:hidden}
+.phases .bar i{display:block;height:100%;background:var(--ink-2)}
+.sw{width:13px;height:13px;border-radius:3px;border:1px solid rgba(0,0,0,.25);display:inline-block}
+.pc{color:var(--ink-2);font-size:12.5px}
+.pf{font-weight:500}
+.react{background:var(--z-liq);border-radius:8px;padding:9px 11px;font-size:13.5px}
+.react b{display:block;font-family:var(--f-display);font-size:15px}
+.react .prog{height:6px;border-radius:3px;background:var(--surface);margin-top:6px;overflow:hidden}
+.react .prog i{display:block;height:100%;background:var(--molten)}
+.lv{font-size:13.5px;margin:2px 0 0;color:var(--ink-2)}
+.lv b{color:var(--ink);font-weight:600}
+math{font-size:1.05em}
+math[display="block"]{margin:6px 0}
+.mbox{background:var(--surface-2);border-radius:8px;padding:6px 10px;overflow-x:auto}
+.scope-row{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.scope{width:168px;height:168px;flex:none;border-radius:50%;box-shadow:0 0 0 5px var(--surface-2),0 0 0 6px var(--rule);background:#14110f;overflow:hidden}
+.scope canvas{width:100%;height:100%;display:block;border-radius:50%}
+.legend{flex:1;min-width:140px;font-size:13px}
+.legend li{display:grid;grid-template-columns:14px minmax(0,1fr) auto;gap:8px;align-items:center}
+.small{font-size:12.5px;color:var(--muted);margin:0}
+/* lower */
+.lower{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;align-items:start}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.lchip{font:500 12.5px var(--f-body);display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);cursor:pointer}
+.lchip i{width:14px;height:3px;border-radius:2px;display:inline-block}
+.lchip[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent)}
+.info h4{font:700 17px var(--f-display);margin:0 0 6px}
+.info dl{margin:0;display:flex;flex-direction:column;gap:8px}
+.info dt{font:600 11.5px var(--f-mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.info dd{margin:0;font-size:14px;max-width:68ch}
+.alloys{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px;margin-bottom:12px}
+.abtn{text-align:left;font:500 13px var(--f-body);padding:8px 10px;border-radius:8px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);cursor:pointer;display:flex;flex-direction:column;gap:1px}
+.abtn small{font:12px var(--f-mono);color:var(--muted)}
+.abtn[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.alloy-detail{font-size:14px;display:flex;flex-direction:column;gap:6px}
+.alloy-detail h4{font:700 17px var(--f-display);margin:0}
+.alloy-detail p{margin:0;max-width:68ch}
+.kv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:3px 12px;font-size:13.5px}
+.kv dt{color:var(--muted)} .kv dd{margin:0}
+.events li{display:grid;grid-template-columns:22px 62px minmax(0,1fr);gap:8px;font-size:13.5px;align-items:start}
+.evn{width:20px;height:20px;border-radius:50%;border:1.4px solid var(--ink);display:grid;place-items:center;font:600 10.5px var(--f-mono)}
+.evt{color:var(--ink-2);padding-top:1px}
+.empty{color:var(--muted);font-size:13.5px;margin:0}
+/* build view */
+.bhead{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{font:600 13.5px var(--f-body);padding:8px 14px;border:0;background:none;color:var(--ink-2);cursor:pointer}
+.seg button+button{border-left:1px solid var(--rule)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+#bs{width:100%;display:block}
+.bgrid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:900px){.bgrid{grid-template-columns:minmax(0,1fr)}}
+.step h3{font:700 18px var(--f-display);margin:0 0 6px}
+.step p{margin:0 0 8px;max-width:68ch}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--rule-2)}
+th{font:600 11.5px var(--f-mono);text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+td.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.phys p{margin:0 0 8px;max-width:70ch;font-size:14px}
+.phys ul{margin:0;padding-left:18px;font-size:14px;display:flex;flex-direction:column;gap:4px}
+.legend-inline{display:flex;flex-wrap:wrap;gap:12px;font-size:12.5px;color:var(--ink-2);margin-top:6px}
+.legend-inline span{display:inline-flex;align-items:center;gap:5px}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+@media (prefers-reduced-motion:reduce){.ln{transition:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Tecnología e Ingeniería · 2.º Bachillerato · Materiales y fabricación</div>
+    <h1>Diagramas de fases</h1>
+    <p class="lede">Simulador de la cristalización de aleaciones binarias: cómo se construye el diagrama a partir de las curvas de enfriamiento, qué significa cada línea y cómo leerlo con la regla de la horizontal y la regla de la palanca, con aleaciones reales.</p>
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tab-explore" aria-selected="true" aria-controls="view-explore" data-view="explore">Explorador</button>
+      <button role="tab" id="tab-build" aria-selected="false" aria-controls="view-build" data-view="build">Cómo se forma un diagrama</button>
+    </div>
+  </header>
+
+  <section id="view-explore" class="view">
+    <div class="sysbar" id="sysbar"></div>
+    <p class="sysdesc" id="sysdesc"></p>
+    <div class="bench">
+      <div class="panel">
+        <div class="ctrls">
+          <div class="ctl"><label for="xIn"><span>Composición de la aleación</span><output id="xOut"></output></label><input type="range" id="xIn"></div>
+          <div class="ctl"><label for="tIn"><span>Temperatura</span><output id="tOut"></output></label><input type="range" id="tIn"></div>
+          <div class="btns">
+            <button class="btn primary" id="coolBtn">Enfriar desde líquido</button>
+            <button class="btn" id="resetBtn">Reiniciar</button>
+            <label class="sel" for="speed"><span>Velocidad</span>
+              <select id="speed"><option value="18">Lenta</option><option value="10" selected>Normal</option><option value="4.5">Rápida</option></select>
+            </label>
+            <label class="chk" id="zoomWrap" hidden><input type="checkbox" id="zoomIn"> Ampliar aceros (0–2,2 % C)</label>
+          </div>
+        </div>
+        <div class="plots">
+          <div class="pl"><div class="pl-h">Diagrama de equilibrio <span class="hint">· arrastra el punto b o toca una línea</span></div><svg id="dg" class="plot" tabindex="0" role="application" aria-label="Diagrama de equilibrio de fases. Usa las flechas para mover el punto b: izquierda y derecha cambian la composición, arriba y abajo la temperatura."></svg></div>
+          <div class="pl"><div class="pl-h">Curva de enfriamiento</div><svg id="cv" class="plot" role="img" aria-label="Curva de enfriamiento de la aleación"></svg></div>
+        </div>
+        <p class="note" id="sysnote"></p>
+      </div>
+      <aside class="panel readout">
+        <div class="ro-top"><div class="ro-coord mono" id="roCoord"></div><span class="chip" id="roZone"></span></div>
+        <div class="react" id="roReact" hidden></div>
+        <h3 class="h3">Fases presentes</h3>
+        <ul class="phases" id="roPhases"></ul>
+        <div id="roLever"></div>
+        <h3 class="h3">Microestructura (vista al microscopio)</h3>
+        <div class="scope-row"><div class="scope"><canvas id="ms" width="180" height="180"></canvas></div><ul class="legend" id="roMicro"></ul></div>
+        <div id="roCLever"></div>
+      </aside>
+    </div>
+    <div class="lower">
+      <section class="panel"><h2 class="h2">Líneas y puntos del diagrama</h2><div class="chips" id="lineChips"></div><div class="info" id="lineInfo"></div></section>
+      <section class="panel"><h2 class="h2">Aleaciones reales</h2><div class="alloys" id="alloyList"></div><div class="alloy-detail" id="alloyDetail"></div></section>
+      <section class="panel"><h2 class="h2">Qué ocurre al enfriar</h2><ol class="events" id="events"></ol></section>
+    </div>
+  </section>
+
+  <section id="view-build" class="view" hidden>
+    <div class="bhead">
+      <div class="seg" id="bseg"></div>
+      <div class="btns" style="grid-column:auto">
+        <label class="sel" for="bDens"><span>Aleaciones</span>
+          <select id="bDens"><option value="6">Pocas (5–6)</option><option value="11" selected>11</option><option value="21">21</option></select>
+        </label>
+        <button class="btn primary" id="bNext">Enfriar la siguiente aleación</button>
+        <button class="btn" id="bAll">Enfriar todas (animado)</button>
+        <button class="btn" id="bInstant">Mostrar todas a la vez</button>
+        <button class="btn" id="bJoin">Unir los puntos</button>
+        <button class="btn" id="bReset">Reiniciar</button>
+      </div>
+    </div>
+    <div class="panel">
+      <svg id="bs" role="img" aria-label="Construcción del diagrama a partir de las curvas de enfriamiento"></svg>
+      <div class="legend-inline">
+        <span><i class="dot" style="background:var(--c-liq)"></i>Inicio de la solidificación → liquidus</span>
+        <span><i class="dot" style="background:var(--c-sol)"></i>Fin de la solidificación → solidus</span>
+        <span><i class="dot" style="background:var(--c-iso)"></i>Meseta eutéctica</span>
+        <span><i class="dot" style="background:var(--accent)"></i>Meseta de metal puro o eutéctico</span>
+      </div>
+    </div>
+    <div class="bgrid">
+      <div class="panel step" id="bStep"></div>
+      <div class="panel">
+        <h2 class="h2">Puntos registrados</h2>
+        <div class="tbl"><table><thead><tr><th>Aleación</th><th>Inicio (°C)</th><th>Fin (°C)</th><th>Forma de la curva</th></tr></thead><tbody id="bTable"></tbody></table></div>
+      </div>
+    </div>
+    <div class="panel phys">
+      <h2 class="h2">Por qué la curva cambia de pendiente</h2>
+      <p>Al enfriar, la pieza pierde calor hacia el ambiente. Cuando el líquido se convierte en sólido libera su calor latente <i>L</i>, que compensa parte de esa pérdida. El simulador usa este balance de energía por unidad de masa (enfriamiento de Newton, en equilibrio):</p>
+      <div class="mbox">
+        <math display="block"><mrow><mi>c</mi><mfrac><mrow><mi>d</mi><mi>T</mi></mrow><mrow><mi>d</mi><mi>t</mi></mrow></mfrac><mo>+</mo><mi>L</mi><mfrac><mrow><mi>d</mi><msub><mi>f</mi><mi>L</mi></msub></mrow><mrow><mi>d</mi><mi>t</mi></mrow></mfrac><mo>=</mo><mo>−</mo><mi>k</mi><mo>(</mo><mi>T</mi><mo>−</mo><msub><mi>T</mi><mtext>amb</mtext></msub><mo>)</mo><mspace width="1em"></mspace><mo>⇒</mo><mspace width="1em"></mspace><mfrac><mrow><mi>d</mi><mi>T</mi></mrow><mrow><mi>d</mi><mi>t</mi></mrow></mfrac><mo>=</mo><mfrac><mrow><mo>−</mo><mi>k</mi><mo>(</mo><mi>T</mi><mo>−</mo><msub><mi>T</mi><mtext>amb</mtext></msub><mo>)</mo></mrow><mrow><mi>c</mi><mo>+</mo><mi>L</mi><mstyle displaystyle="true"><mfrac><mrow><mi>d</mi><msub><mi>f</mi><mi>L</mi></msub></mrow><mrow><mi>d</mi><mi>T</mi></mrow></mfrac></mstyle></mrow></mfrac></mrow></math>
+      </div>
+      <ul>
+        <li><b>Solo líquido o solo sólido:</b> <i>df<sub>L</sub>/dT</i> = 0 y la curva cae con su pendiente normal.</li>
+        <li><b>Zona de dos fases (sólido + líquido):</b> <i>df<sub>L</sub>/dT</i> &gt; 0, el denominador crece y la curva se suaviza. Aparece un «codo» al entrar (liquidus) y otro al salir (solidus).</li>
+        <li><b>Metal puro o composición eutéctica:</b> todo el líquido solidifica a una sola temperatura, <i>df<sub>L</sub>/dT</i> → ∞ y <i>dT/dt</i> = 0. La curva tiene una meseta horizontal.</li>
+      </ul>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+'use strict';
+const $=(s,r=document)=>r.querySelector(s);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function fmt(v,d=1){ if(v==null||!isFinite(v)) return '—'; let s=Number(v).toFixed(d); if(/^-0(\.0+)?$/.test(s)) s=s.slice(1); return s.replace('.',','); }
+function pct(f){ if(f>=0.9995) return '100 %'; if(f<=0.0005) return '0 %'; return fmt(100*f,1)+' %'; }
+const num=v=>String(v).replace('.',',');
+const cssv=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const rgb=c=>`rgb(${c[0]},${c[1]},${c[2]})`;
+const P1=v=>v.toFixed(1);
+
+/* ---------- curvas monótonas (Hermite, Fritsch–Carlson) ---------- */
+function mkCurve(pts){
+  const n=pts.length, xs=pts.map(p=>p[0]), ys=pts.map(p=>p[1]);
+  const d=[], m=new Array(n).fill(0);
+  for(let i=0;i<n-1;i++) d.push((ys[i+1]-ys[i])/(xs[i+1]-xs[i]));
+  if(n===2){ m[0]=m[1]=d[0]; }
+  else{
+    m[0]=d[0]; m[n-1]=d[n-2];
+    for(let i=1;i<n-1;i++) m[i]=(d[i-1]*d[i]<=0)?0:(d[i-1]+d[i])/2;
+    for(let i=0;i<n-1;i++){
+      if(d[i]===0){m[i]=0;m[i+1]=0;continue;}
+      const a=m[i]/d[i], b=m[i+1]/d[i], s=a*a+b*b;
+      if(s>9){const t=3/Math.sqrt(s); m[i]=t*a*d[i]; m[i+1]=t*b*d[i];}
+    }
+  }
+  const T=x=>{
+    if(x<=xs[0]) return ys[0]; if(x>=xs[n-1]) return ys[n-1];
+    let i=0; while(i<n-2 && x>xs[i+1]) i++;
+    const h=xs[i+1]-xs[i], t=(x-xs[i])/h, t2=t*t, t3=t2*t;
+    return (2*t3-3*t2+1)*ys[i]+(t3-2*t2+t)*h*m[i]+(-2*t3+3*t2)*ys[i+1]+(t3-t2)*h*m[i+1];
+  };
+  const inc=ys[n-1]>ys[0];
+  const X=v=>{
+    let lo=xs[0], hi=xs[n-1];
+    if(inc){ if(v<=ys[0]) return lo; if(v>=ys[n-1]) return hi; }
+    else { if(v>=ys[0]) return lo; if(v<=ys[n-1]) return hi; }
+    for(let k=0;k<42;k++){ const mid=(lo+hi)/2, tv=T(mid); if((tv<v)===inc) lo=mid; else hi=mid; }
+    return (lo+hi)/2;
+  };
+  const samp=(N=72)=>{const out=[]; for(let k=0;k<=N;k++){const x=xs[0]+(xs[n-1]-xs[0])*k/N; out.push([x,T(x)]);} return out;};
+  return {T,X,samp};
+}
+
+/* ---------- colores de microestructura (imagen de microscopio, fijos) ---------- */
+const MOL=[238,116,40], CUNI=[206,176,142], PBa=[98,106,118], SNb=[226,229,233], BIa=[150,140,172], CDb=[218,222,228];
+const FER=[238,233,222], AUS=[226,192,150], CEM=[252,251,246], PDK=[66,58,52];
+const L1=f=>({key:'L',slot:'rest',name:'Líquido',assign:'core',look:'liq',c1:MOL,f});
+const lay=(o,f)=>Object.assign({},o,{f});
+const R=o=>Object.assign({fL:0,fG:0,tie:null,reacting:false,clever:null},o);
+
+const SYS={};
+
+/* ===================== Cu–Ni ===================== */
+{
+const liq=mkCurve([[0,1085],[10,1146],[20,1202],[24,1220],[32,1250],[35,1260],[50,1310],[60,1342],[70,1373],[80,1402],[90,1429],[100,1455]]);
+const sol=mkCurve([[0,1085],[10,1122],[20,1160],[30,1200],[35,1220],[43,1250],[46,1260],[60,1307],[70,1342],[80,1378],[90,1417],[100,1455]]);
+const A={key:'a',slot:'sol',name:'Solución sólida α (Cu–Ni)',assign:'core',look:'solid',c1:CUNI,gb:true};
+const pL=(c,f)=>({id:'L',name:'Líquido',c,f,col:MOL}), pA=(c,f,n)=>({id:'a',name:n||'α (sólido)',c,f,col:CUNI});
+SYS.cuni={
+  id:'cuni', short:'Cu–Ni', kind:'Solubilidad total en sólido y en líquido', A:'Cu', B:'Ni', unit:'% Ni', dec:1, xmax:100, step:0.5, Tmin:1000, Tmax:1550, Tlow:1020,
+  desc:'Dos componentes totalmente solubles en estado sólido y en estado líquido. El Cu y el Ni tienen la misma red cristalina (FCC) y radios atómicos casi iguales, por eso forman una única solución sólida α en cualquier proporción. Entre la liquidus y la solidus coexisten sólido y líquido.',
+  note:'Datos: fusión del Cu a 1085 °C y del Ni a 1455 °C. Liquidus y solidus aproximadas a partir del diagrama de referencia (Callister; ASM Handbook, vol. 3). A 35 % Ni y 1250 °C: líquido con ≈32 % Ni y sólido con ≈43 % Ni.',
+  xTitle:'Composición (% en peso de Ni)', xTicks:[0,10,20,30,40,50,60,70,80,90,100], yTicks:[1000,1085,1200,1300,1400,1455,1550], yKey:[1085,1455],
+  def:{x:35,T:1250},
+  labels:[['Líquido',30,1470],['α + L',70,1358],['Solución sólida α',48,1110]],
+  eq(x,T){
+    const Tl=liq.T(x), Ts=sol.T(x);
+    if(T>=Tl) return R({key:'L',zone:'liq',name:'Líquido',phases:[pL(x,1)],micro:[L1(1)],fL:1});
+    if(T<=Ts) return R({key:'a',zone:'s1',name:'Solución sólida α',phases:[pA(x,1,'α (solución sólida)')],micro:[lay(A,1)]});
+    const cl=liq.X(T), cs=sol.X(T), fL=clamp((cs-x)/(cs-cl),0,1);
+    return R({key:'a+L',zone:'mix',name:'α + líquido',phases:[pL(cl,fL),pA(cs,1-fL)],micro:[lay(A,1-fL),L1(fL)],fL,
+      tie:{l:cl,r:cs,ln:'Líquido',rn:'α (sólido)',lLine:'liquidus',rLine:'solidus'}});
+  },
+  reaction(x){ return x<50?{name:'Solidificación del Cu puro',text:'El Cu puro solidifica a 1085 °C constantes: el calor latente compensa el calor que pierde (meseta).'}:{name:'Solidificación del Ni puro',text:'El Ni puro solidifica a 1455 °C constantes (meseta).'}; },
+  lines:[
+    {id:'liq',cls:'liq',name:'Liquidus',paths:[liq.samp()],info:{
+      que:'Une, para cada composición, la temperatura a la que aparece el primer cristal al enfriar (o se funde el último al calentar). Por encima de ella toda la aleación es líquida.',
+      como:'En cada curva de enfriamiento es el primer cambio de pendiente: al empezar a solidificar se libera calor latente y el enfriamiento se frena.',
+      cruzar:'Nacen los primeros cristales de α. Son más ricos en Ni que el líquido, porque el Ni tiene mayor punto de fusión (1455 °C frente a 1085 °C del Cu).'}},
+    {id:'sol',cls:'sol',name:'Solidus',paths:[sol.samp()],info:{
+      que:'Une las temperaturas a las que termina la solidificación. Por debajo de ella toda la aleación es sólida.',
+      como:'En la curva de enfriamiento es el segundo cambio de pendiente: se acaba la liberación de calor latente y la curva vuelve a caer al ritmo del sólido.',
+      cruzar:'Solidifica la última gota de líquido. Si el enfriamiento es muy lento (equilibrio) queda una única solución sólida α con la misma composición que la aleación.'}}
+  ],
+  points:[
+    {id:'pA',x:0,T:1085,name:'Fusión del Cu (1085 °C)',info:{que:'Metal puro: liquidus y solidus coinciden en un punto. Solidifica a temperatura constante.',como:'Su curva de enfriamiento tiene una meseta horizontal en lugar de un tramo de pendiente suave.',cruzar:'Todo el Cu líquido pasa a sólido sin que baje la temperatura hasta que termina.'}},
+    {id:'pB',x:100,T:1455,name:'Fusión del Ni (1455 °C)',info:{que:'Metal puro: liquidus y solidus coinciden. Es el extremo más caliente de la lente sólido + líquido.',como:'Meseta horizontal en la curva de enfriamiento.',cruzar:'El Ni solidifica a temperatura constante.'}}
+  ],
+  alloys:[
+    {name:'Cuproníquel 90/10',x:10,uses:'Tuberías de agua de mar, condensadores e intercambiadores de calor en barcos y desaladoras. Resiste muy bien la corrosión marina.',note:'Lleva además un 1–2 % de Fe; aquí se trata como binaria Cu–Ni.'},
+    {name:'Cuproníquel 75/25',x:25,uses:'Monedas: la de 5 centavos de EE. UU. y partes de las monedas de 1 € y 2 €.',note:''},
+    {name:'Constantán',x:45,uses:'Resistencias de precisión y termopares (tipos J, T y E): su resistividad apenas cambia con la temperatura.',note:'Composición típica 55 % Cu – 45 % Ni.'},
+    {name:'Monel 400',x:66,uses:'Bombas, válvulas, ejes de hélice y equipos químicos expuestos a agua de mar o ácidos.',note:'≈63–70 % Ni, resto Cu, con algo de Fe y Mn; aquí se trata como binaria.'}
+  ],
+  extra:null
+};
+}
+
+/* ===================== Eutécticos (fábrica) ===================== */
+function makeEut(c){
+  const AP={key:'ap',slot:'prim',assign:'core',look:'solid',c1:c.ca,gb:true};
+  const BP={key:'bp',slot:'prim',assign:'core',look:'solid',c1:c.cb,gb:true};
+  const EU={key:'E',slot:'rest',name:c.eName,assign:'core',look:'lam',c1:c.ca,c2:c.cb,k:0.62};
+  const phA=(cc,f)=>({id:'a',name:c.aPh,c:cc,f,col:c.ca}), phB=(cc,f)=>({id:'b',name:c.bPh,c:cc,f,col:c.cb}), phL=(cc,f)=>({id:'L',name:'Líquido',c:cc,f,col:MOL});
+  const onlyA=x=>R({key:'a',zone:'s1',name:c.aOnly,phases:[phA(x,1)],micro:[lay(Object.assign({},AP,{name:c.aOnly}),1)]});
+  const onlyB=x=>R({key:'b',zone:'s1',name:c.bOnly,phases:[phB(x,1)],micro:[lay(Object.assign({},BP,{name:c.bOnly}),1)]});
+  return function(x,T){
+    const TE=c.TE, xE=c.xE, aMax=c.aMax, bMax=c.bMax;
+    if(T>TE){
+      if(x<=xE){
+        if(T>=c.liqA.T(x)) return R({key:'L',zone:'liq',name:'Líquido',phases:[phL(x,1)],micro:[L1(1)],fL:1});
+        if(c.solA ? (x<=aMax && T<=c.solA.T(x)) : x<=1e-9) return onlyA(x);
+        const ca=c.solA?c.solA.X(T):0, cl=c.liqA.X(T), fL=clamp((x-ca)/(cl-ca),0,1);
+        return R({key:'a+L',zone:'mix',name:c.aShort+' + líquido',phases:[phA(ca,1-fL),phL(cl,fL)],
+          micro:[lay(Object.assign({},AP,{name:c.aPrim}),1-fL),L1(fL)],fL,
+          tie:{l:ca,r:cl,ln:c.aPh,rn:'Líquido',lLine:c.solA?'solidus':'eje: '+c.A+' puro',rLine:'liquidus'}});
+      } else {
+        if(T>=c.liqB.T(x)) return R({key:'L',zone:'liq',name:'Líquido',phases:[phL(x,1)],micro:[L1(1)],fL:1});
+        if(c.solB ? (x>=bMax && T<=c.solB.T(x)) : x>=c.xmax-1e-9) return onlyB(x);
+        const cb=c.solB?c.solB.X(T):c.xmax, cl=c.liqB.X(T), fL=clamp((cb-x)/(cb-cl),0,1);
+        return R({key:'b+L',zone:'mix',name:c.bShort+' + líquido',phases:[phL(cl,fL),phB(cb,1-fL)],
+          micro:[lay(Object.assign({},BP,{name:c.bPrim}),1-fL),L1(fL)],fL,
+          tie:{l:cl,r:cb,ln:'Líquido',rn:c.bPh,lLine:'liquidus',rLine:c.solB?'solidus':'eje: '+c.B+' puro'}});
+      }
+    }
+    const ca=c.solvA?c.solvA.X(T):0, cb=c.solvB?c.solvB.X(T):c.xmax;
+    if(x<=ca) return onlyA(x);
+    if(x>=cb) return onlyB(x);
+    const fb=clamp((x-ca)/(cb-ca),0,1);
+    let micro, clever=null;
+    if(x<aMax) micro=[lay(Object.assign({},AP,{name:c.aOnly}),1-fb),lay({key:'bpr',slot:'pr',name:c.bPh+' precipitada (al cruzar el solvus)',assign:'bound',look:'solid',c1:c.cb},fb)];
+    else if(x>bMax) micro=[lay(Object.assign({},BP,{name:c.bOnly}),fb),lay({key:'apr',slot:'pr',name:c.aPh+' precipitada (al cruzar el solvus)',assign:'bound',look:'solid',c1:c.ca},1-fb)];
+    else if(Math.abs(x-xE)<0.05) micro=[lay(EU,1)];
+    else if(x<xE){ const fp=(xE-x)/(xE-aMax); micro=[lay(Object.assign({},AP,{name:c.aPrim}),fp),lay(EU,1-fp)]; clever={name:'eutéctico',a:x,b:aMax,c:xE,d:aMax,val:1-fp}; }
+    else { const fp=(x-xE)/(bMax-xE); micro=[lay(Object.assign({},BP,{name:c.bPrim}),fp),lay(EU,1-fp)]; clever={name:'eutéctico',a:bMax,b:x,c:bMax,d:xE,val:1-fp}; }
+    return R({key:'a+b',zone:'s2',name:c.abName,phases:[phA(ca,1-fb),phB(cb,fb)],micro,clever,
+      tie:{l:ca,r:cb,ln:c.aPh,rn:c.bPh,lLine:c.solvA?'solvus':'eje: '+c.A+' puro',rLine:c.solvB?'solvus':'eje: '+c.B+' puro'}});
+  };
+}
+function eutReaction(c){
+  return function(x,T){
+    if(Math.abs(T-c.TE)<1) return {name:'Reacción eutéctica',text:`El líquido restante (${num(c.xE)} ${c.unit}) se transforma a ${num(c.TE)} °C constantes en eutéctico: ${c.aPh} + ${c.bPh} en láminas alternas.`};
+    if(x<c.xE) return {name:`Solidificación del ${c.A} puro`,text:`El ${c.A} puro solidifica a ${num(c.TA)} °C constantes (meseta).`};
+    return {name:`Solidificación del ${c.B} puro`,text:`El ${c.B} puro solidifica a ${num(c.TB)} °C constantes (meseta).`};
+  };
+}
+
+/* ===================== Bi–Cd ===================== */
+{
+const c={A:'Bi',B:'Cd',unit:'% Cd',TA:271.4,TB:321.1,TE:144,xE:40,aMax:0,bMax:100,xmax:100,
+  liqA:mkCurve([[0,271.4],[10,242],[20,212],[30,179],[40,144]]),
+  liqB:mkCurve([[40,144],[50,182],[60,216],[70,246],[80,273],[90,298],[100,321.1]]),
+  solA:null,solB:null,solvA:null,solvB:null,
+  aPh:'Bi',bPh:'Cd',aShort:'Bi',bShort:'Cd',aOnly:'Bi sólido',bOnly:'Cd sólido',aPrim:'Bi primario (proeutéctico)',bPrim:'Cd primario (proeutéctico)',eName:'Eutéctico Bi + Cd',abName:'Bi + Cd (sólido)',ca:BIa,cb:CDb};
+SYS.bicd={
+  id:'bicd', short:'Bi–Cd', kind:'Eutéctico, insolubles en sólido', A:'Bi', B:'Cd', unit:'% Cd', dec:1, xmax:100, step:0.5, Tmin:0, Tmax:350, Tlow:25, Tend:25,
+  desc:'Solubles en líquido e insolubles en sólido: al solidificar, el Bi y el Cd forman cristales separados. Aparece el punto eutéctico, la composición con el punto de fusión más bajo, que solidifica a temperatura constante como un metal puro. A la izquierda quedan las aleaciones hipoeutécticas y a la derecha las hipereutécticas.',
+  note:'Datos: fusión del Bi 271,4 °C y del Cd 321,1 °C; eutéctico a ≈144 °C y ≈40 % Cd. La solubilidad en sólido real es muy pequeña y aquí se toma como nula. Ramas de liquidus aproximadas.',
+  xTitle:'Composición (% en peso de Cd)', xTicks:[0,20,40,60,80,100], yTicks:[0,50,100,144,200,271.4,321.1], yKey:[144,271.4,321.1],
+  def:{x:20,T:180},
+  labels:[['Líquido',55,310],['Bi + L',14,188],['Cd + L',76,205],['Bi + Cd (sólido)',50,75]],
+  eq:makeEut(c), reaction:eutReaction(c),
+  lines:[
+    {id:'liq',cls:'liq',name:'Liquidus',paths:[c.liqA.samp(),c.liqB.samp()],info:{
+      que:'Dos ramas que bajan desde los puntos de fusión del Bi (271 °C) y del Cd (321 °C) hasta cortarse en el punto eutéctico (≈40 % Cd, ≈144 °C). Añadir un metal al otro baja su temperatura de fusión.',
+      como:'Primer cambio de pendiente de cada curva de enfriamiento.',
+      cruzar:'A la izquierda del eutéctico solidifican primero cristales de Bi puro; a la derecha, de Cd puro. El líquido que queda se acerca a la composición eutéctica.'}},
+    {id:'eut',cls:'iso',name:'Isoterma eutéctica (solidus)',paths:[[[0,144],[100,144]]],info:{
+      que:'Como el Bi y el Cd son insolubles en sólido, todas las aleaciones terminan de solidificar a la misma temperatura, ≈144 °C. Esta horizontal es el solidus del sistema.',
+      como:'Es la meseta común que aparece en las curvas de enfriamiento de todas las aleaciones. Dura más cuanto más cerca está la aleación del 40 % Cd.',
+      cruzar:'El líquido restante (≈40 % Cd) solidifica a temperatura constante como eutéctico: una mezcla fina de cristales de Bi y de Cd.'}}
+  ],
+  points:[
+    {id:'pE',x:40,T:144,name:'Punto eutéctico (40 % Cd, 144 °C)',info:{que:'Composición con el punto de fusión más bajo del sistema. Pasa de líquido a sólido a temperatura constante, como un metal puro.',como:'Su curva de enfriamiento tiene una única meseta, sin tramo previo de pendiente suave.',cruzar:'Todo el líquido se transforma en eutéctico Bi + Cd.'}},
+    {id:'pA',x:0,T:271.4,name:'Fusión del Bi (271,4 °C)',info:{que:'Punto de fusión del bismuto puro.',como:'Meseta en su curva de enfriamiento.',cruzar:'Solidifica a temperatura constante.'}},
+    {id:'pB',x:100,T:321.1,name:'Fusión del Cd (321,1 °C)',info:{que:'Punto de fusión del cadmio puro.',como:'Meseta en su curva de enfriamiento.',cruzar:'Solidifica a temperatura constante.'}}
+  ],
+  alloys:[
+    {name:'Eutéctica 60Bi–40Cd',x:40,uses:'Aleación fusible de bajo punto de fusión (≈144 °C). Hoy apenas se usa por la toxicidad del cadmio.',note:''},
+    {name:'Hipoeutéctica 20 % Cd',x:20,uses:'Ejemplo didáctico: solidifica primero Bi puro y al final el eutéctico.',note:''},
+    {name:'Hipereutéctica 70 % Cd',x:70,uses:'Ejemplo didáctico: solidifica primero Cd puro y al final el eutéctico.',note:''}
+  ],
+  extra:null
+};
+}
+
+/* ===================== Pb–Sn ===================== */
+{
+const c={A:'Pb',B:'Sn',unit:'% Sn',TA:327.5,TB:232,TE:183,xE:61.9,aMax:18.3,bMax:97.8,xmax:100,
+  liqA:mkCurve([[0,327.5],[5,314],[10,302],[20,279],[30,257],[40,238],[50,214],[61.9,183]]),
+  liqB:mkCurve([[61.9,183],[70,192],[80,205],[90,219],[100,232]]),
+  solA:mkCurve([[0,327.5],[5,308],[10,268],[18.3,183]]),
+  solB:mkCurve([[97.8,183],[100,232]]),
+  solvA:mkCurve([[1.5,0],[2.5,50],[5.5,100],[9,130],[12.5,155],[18.3,183]]),
+  solvB:mkCurve([[97.8,183],[98.8,130],[99.3,80],[99.6,0]]),
+  aPh:'α',bPh:'β',aShort:'α',bShort:'β',aOnly:'α (solución sólida rica en Pb)',bOnly:'β (solución sólida rica en Sn)',aPrim:'α primaria (proeutéctica)',bPrim:'β primaria (proeutéctica)',eName:'Eutéctico α + β (laminar)',abName:'α + β',ca:PBa,cb:SNb};
+SYS.pbsn={
+  id:'pbsn', short:'Pb–Sn', kind:'Eutéctico, solubilidad parcial en sólido', A:'Pb', B:'Sn', unit:'% Sn', dec:1, xmax:100, step:0.5, Tmin:0, Tmax:350, Tlow:25, Tend:25,
+  desc:'Totalmente solubles en líquido y parcialmente solubles en sólido: el Pb admite algo de Sn (solución α) y el Sn algo de Pb (solución β). Hay seis zonas: L, α, β, α + L, β + L y α + β. Es el diagrama de las soldaduras blandas clásicas.',
+  note:'Datos: fusión del Pb 327,5 °C y del Sn 232 °C; eutéctico a 183 °C y 61,9 % Sn; solubilidad máxima 18,3 % Sn en α y 97,8 % Sn en β (Callister; ASM). Curvas de solvus aproximadas.',
+  xTitle:'Composición (% en peso de Sn)', xTicks:[0,18.3,40,61.9,80,100], yTicks:[0,50,100,150,183,232,327.5], yKey:[183,232,327.5], xKey:[18.3,61.9],
+  def:{x:40,T:210},
+  labels:[['Líquido',45,305],['α',5,215],['α + L',33,212],['β + L',82,191],['α + β',50,90]],
+  eq:makeEut(c), reaction:eutReaction(c),
+  lines:[
+    {id:'liq',cls:'liq',name:'Liquidus',paths:[c.liqA.samp(),c.liqB.samp()],info:{
+      que:'Temperatura de inicio de la solidificación. Tiene dos ramas que bajan desde los puntos de fusión del Pb (327,5 °C) y del Sn (232 °C) y se cortan en el punto eutéctico (61,9 % Sn, 183 °C).',
+      como:'Primer cambio de pendiente de cada curva de enfriamiento.',
+      cruzar:'A la izquierda del eutéctico aparecen primero cristales de α (rica en Pb); a la derecha, de β (rica en Sn).'}},
+    {id:'sol',cls:'sol',name:'Solidus',paths:[c.solA.samp(),c.solB.samp()],info:{
+      que:'Fin de la solidificación de las aleaciones que no llegan al eutéctico: menos de 18,3 % Sn o más de 97,8 % Sn. Junto con la isoterma eutéctica forma el solidus completo.',
+      como:'Segundo cambio de pendiente en la curva de enfriamiento de esas aleaciones.',
+      cruzar:'Solidifica el último líquido y queda una sola solución sólida (α o β).'}},
+    {id:'eut',cls:'iso',name:'Isoterma eutéctica (183 °C)',paths:[[[18.3,183],[97.8,183]]],info:{
+      que:'Recta horizontal entre 18,3 % y 97,8 % Sn. Todas las aleaciones de ese intervalo terminan de solidificar exactamente a 183 °C.',
+      como:'Es la meseta común de sus curvas de enfriamiento. Dura más cuanto más cerca está la aleación del 61,9 % Sn, porque más líquido llega al eutéctico.',
+      cruzar:'Reacción eutéctica a temperatura constante: L (61,9 % Sn) → α (18,3 % Sn) + β (97,8 % Sn), en láminas alternas.'}},
+    {id:'solv',cls:'solv',name:'Solvus',paths:[c.solvA.samp(),c.solvB.samp()],info:{
+      que:'Límite de solubilidad en estado sólido: máximo de Sn que admite α (izquierda) y de Pb que admite β (derecha). Disminuye al bajar la temperatura: α disuelve 18,3 % Sn a 183 °C y solo ≈2 % a temperatura ambiente.',
+      como:'Casi no se ve en las curvas de enfriamiento porque precipitar en estado sólido libera muy poco calor. Se mide con otras técnicas: metalografía, dilatometría o difracción de rayos X.',
+      cruzar:'El sólido queda sobresaturado y precipita la otra fase dentro de los granos. Es la base del endurecimiento por precipitación, que se usa por ejemplo en aleaciones de aluminio.'}}
+  ],
+  points:[
+    {id:'pE',x:61.9,T:183,name:'Punto eutéctico (61,9 % Sn, 183 °C)',info:{que:'Composición con el punto de fusión más bajo del sistema. Pasa de líquido a sólido directamente y a temperatura constante, como un metal puro.',como:'Su curva de enfriamiento tiene una sola meseta, sin tramo previo de pendiente suave.',cruzar:'Todo el líquido se convierte en eutéctico laminar α + β. Por eso la soldadura Sn63Pb37 funde «de golpe» a 183 °C.'}},
+    {id:'pA',x:0,T:327.5,name:'Fusión del Pb (327,5 °C)',info:{que:'Punto de fusión del plomo puro.',como:'Meseta en su curva de enfriamiento.',cruzar:'Solidifica a temperatura constante.'}},
+    {id:'pB',x:100,T:232,name:'Fusión del Sn (232 °C)',info:{que:'Punto de fusión del estaño puro.',como:'Meseta en su curva de enfriamiento.',cruzar:'Solidifica a temperatura constante.'}}
+  ],
+  alloys:[
+    {name:'Sn63Pb37',x:63,uses:'Soldadura eutéctica de electrónica: pasa de sólido a líquido sin zona pastosa, lo que evita uniones «frías» si la pieza se mueve al enfriar.',note:'Está a ≈1 % del eutéctico teórico (61,9 %); en la práctica funde a 183 °C.'},
+    {name:'Sn60Pb40',x:60,uses:'Soldadura de electrónica clásica: funde entre 183 °C y ≈190 °C.',note:''},
+    {name:'Sn40Pb60',x:40,uses:'Soldadura de fontanería y chapa: intervalo pastoso amplio (183–238 °C) que permite modelar la unión mientras solidifica.',note:''},
+    {name:'Sn10Pb90',x:10,uses:'Soldadura de alta temperatura (≈268–302 °C) para uniones internas que después deben soportar otra soldadura.',note:''}
+  ],
+  globalNote:'Desde 2006 la directiva europea RoHS restringe el plomo en la electrónica. Se usan aleaciones sin plomo como SAC305 (Sn – 3 % Ag – 0,5 % Cu, funde a ≈217–220 °C).',
+  extra:null
+};
+}
+
+/* ===================== Fe–C (Fe–Fe3C) ===================== */
+{
+const liqL=mkCurve([[0,1539],[0.53,1495],[1,1455],[2,1365],[3,1272],[4.3,1148]]);
+const liqR=mkCurve([[4.3,1148],[6.69,1250]]);
+const sol=mkCurve([[0,1539],[0.17,1495],[1,1350],[2.1,1148]]);
+const A3=mkCurve([[0,910],[0.2,852],[0.4,806],[0.6,768],[0.89,723]]);
+const Acm=mkCurve([[0.89,723],[1.2,830],[1.6,968],[2.1,1148]]);
+const FU=mkCurve([[0,910],[0.025,723]]);
+const FL=mkCurve([[0.006,400],[0.025,723]]);
+const XC=6.69;
+const FE={
+  F:{key:'F',slot:'aus',name:'Ferrita (α)',assign:'core',look:'solid',c1:FER,gb:true},
+  Fp:{key:'Fp',slot:'fp',name:'Ferrita proeutectoide',assign:'bound',look:'solid',c1:FER},
+  G:{key:'G',slot:'aus',name:'Austenita (γ)',assign:'core',look:'solid',c1:AUS,gb:true},
+  P:{key:'P',slot:'aus',name:'Perlita (ferrita + cementita en láminas)',assign:'core',look:'lam',c1:FER,c2:PDK,k:1.0},
+  Cs:{key:'Cs',slot:'cs',name:'Cementita secundaria (red en bordes de grano)',assign:'bound',look:'solid',c1:CEM},
+  Gp:{key:'Gp',slot:'prim',name:'Austenita primaria',assign:'core',look:'solid',c1:AUS,gb:true},
+  Pp:{key:'Pp',slot:'prim',name:'Perlita (de la austenita primaria)',assign:'core',look:'lam',c1:FER,c2:PDK,k:1.0},
+  Csr:{key:'Csr',slot:'csr',name:'Cementita secundaria',assign:'core',look:'solid',c1:CEM},
+  Cp:{key:'Cp',slot:'prim',name:'Cementita primaria',assign:'core',look:'solid',c1:CEM,gb:true},
+  Ld:{key:'Ld',slot:'rest',name:'Ledeburita (austenita + cementita)',assign:'core',look:'leb',c1:CEM,c2:AUS},
+  Ldt:{key:'Ldt',slot:'rest',name:'Ledeburita transformada (perlita + cementita)',assign:'core',look:'leb',c1:CEM,c2:PDK},
+  C:{key:'C',slot:'aus',name:'Cementita (Fe₃C)',assign:'core',look:'solid',c1:CEM,gb:true},
+  C3:{key:'C3',slot:'c3',name:'Cementita terciaria',assign:'bound',look:'solid',c1:CEM}
+};
+const pL=(c,f)=>({id:'L',name:'Líquido',c,f,col:MOL}), pG=(c,f)=>({id:'g',name:'Austenita γ',c,f,col:AUS}), pA=(c,f)=>({id:'f',name:'Ferrita α',c,f,col:FER}), pC=f=>({id:'c',name:'Cementita Fe₃C',c:XC,f,col:CEM});
+function eq(x,T){
+  const Tl=x<=4.3?liqL.T(x):liqR.T(x);
+  if(T>=Tl) return R({key:'L',zone:'liq',name:'Líquido',phases:[pL(x,1)],micro:[L1(1)],fL:1});
+  if(x>=XC-1e-6) return R({key:'Fe3C',zone:'s3',name:'Cementita (Fe₃C)',phases:[pC(1)],micro:[lay(FE.C,1)]});
+  if(T>1148){
+    if(x<=4.3){
+      if(x<=2.1 && T<=sol.T(x)) return R({key:'γ',zone:'s1',name:'Austenita (γ)',phases:[pG(x,1)],micro:[lay(FE.G,1)],fG:1});
+      const cg=sol.X(T), cl=liqL.X(T), fL=clamp((x-cg)/(cl-cg),0,1);
+      return R({key:'γ+L',zone:'mix',name:'Austenita + líquido',phases:[pG(cg,1-fL),pL(cl,fL)],micro:[lay(FE.Gp,1-fL),L1(fL)],fL,fG:1-fL,
+        tie:{l:cg,r:cl,ln:'Austenita γ',rn:'Líquido',lLine:'solidus',rLine:'liquidus'}});
+    }
+    const cl=liqR.X(T), fL=clamp((XC-x)/(XC-cl),0,1);
+    return R({key:'Fe3C+L',zone:'mix',name:'Cementita + líquido',phases:[pL(cl,fL),pC(1-fL)],micro:[lay(FE.Cp,1-fL),L1(fL)],fL,
+      tie:{l:cl,r:XC,ln:'Líquido',rn:'Cementita',lLine:'liquidus',rLine:'cementita, 6,69 %'}});
+  }
+  if(T>723){
+    if(T<910){
+      const xf=FU.X(T), xa=A3.X(T);
+      if(x<=xf) return R({key:'α',zone:'s1',name:'Ferrita (α)',phases:[pA(x,1)],micro:[lay(FE.F,1)]});
+      if(x<xa){ const fg=clamp((x-xf)/(xa-xf),0,1);
+        return R({key:'α+γ',zone:'s2',name:'Ferrita + austenita',phases:[pA(xf,1-fg),pG(xa,fg)],micro:[lay(FE.Fp,1-fg),lay(FE.G,fg)],fG:fg,
+          tie:{l:xf,r:xa,ln:'Ferrita α',rn:'Austenita γ',lLine:'límite de la ferrita',rLine:'A3'}}); }
+    }
+    const xm=Acm.X(T);
+    if(x<=xm) return R({key:'γ',zone:'s1',name:'Austenita (γ)',phases:[pG(x,1)],micro:[lay(FE.G,1)],fG:1});
+    const fg=clamp((XC-x)/(XC-xm),0,1), ph=[pG(xm,fg),pC(1-fg)], tie={l:xm,r:XC,ln:'Austenita γ',rn:'Cementita',lLine:'Acm',rLine:'cementita, 6,69 %'};
+    if(x<=2.1) return R({key:'γ+Fe3C',zone:'s2',name:'Austenita + cementita',phases:ph,micro:[lay(FE.Cs,1-fg),lay(FE.G,fg)],fG:fg,tie});
+    if(x<4.3-1e-6){ const fp=(4.3-x)/2.2, cs=fp*(2.1-xm)/(XC-xm);
+      return R({key:'γ+Ld+Fe3C',zone:'s3',name:'Austenita + ledeburita + cementita',phases:ph,micro:[lay(FE.Gp,fp-cs),lay(FE.Csr,cs),lay(FE.Ld,1-fp)],fG:fg,tie}); }
+    if(x<=4.3+1e-6) return R({key:'Ld',zone:'s3',name:'Ledeburita',phases:ph,micro:[lay(FE.Ld,1)],fG:fg,tie});
+    const fc=(x-4.3)/(XC-4.3);
+    return R({key:'Ld+Fe3C',zone:'s3',name:'Ledeburita + cementita',phases:ph,micro:[lay(FE.Cp,fc),lay(FE.Ld,1-fc)],fG:fg,tie});
+  }
+  const xf=FL.X(T);
+  if(x<=xf) return R({key:'α',zone:'s1',name:'Ferrita (α)',phases:[pA(x,1)],micro:[lay(FE.F,1)]});
+  const fc=clamp((x-xf)/(XC-xf),0,1), ph=[pA(xf,1-fc),pC(fc)], tie={l:xf,r:XC,ln:'Ferrita α',rn:'Cementita',lLine:'límite de la ferrita',rLine:'cementita, 6,69 %'};
+  if(x<0.025) return R({key:'α+Fe3C(III)',zone:'s2',name:'Ferrita + cementita terciaria',phases:ph,micro:[lay(FE.F,1-fc),lay(FE.C3,fc)],tie});
+  if(x<0.89-0.004){ const fP=clamp((x-0.025)/(0.89-0.025),0,1);
+    return R({key:'α+P',zone:'s2',name:'Ferrita + perlita',phases:ph,micro:[lay(FE.Fp,1-fP),lay(FE.P,fP)],tie,clever:{name:'perlita',a:x,b:0.025,c:0.89,d:0.025,val:fP}}); }
+  if(x<=0.89+0.004) return R({key:'P',zone:'s2',name:'Perlita',phases:ph,micro:[lay(FE.P,1)],tie});
+  if(x<=2.1){ const fcs=(x-0.89)/(XC-0.89);
+    return R({key:'P+Fe3C',zone:'s2',name:'Perlita + cementita',phases:ph,micro:[lay(FE.Cs,fcs),lay(FE.P,1-fcs)],tie,clever:{name:'cementita secundaria',a:x,b:0.89,c:XC,d:0.89,val:fcs}}); }
+  if(x<4.3-1e-6){ const fp=(4.3-x)/2.2, cs=fp*(2.1-0.89)/(XC-0.89);
+    return R({key:'P+Ldt+Fe3C',zone:'s3',name:'Perlita + ledeburita + cementita',phases:ph,micro:[lay(FE.Pp,fp-cs),lay(FE.Csr,cs),lay(FE.Ldt,1-fp)],tie}); }
+  if(x<=4.3+1e-6) return R({key:'Ldt',zone:'s3',name:'Ledeburita transformada',phases:ph,micro:[lay(FE.Ldt,1)],tie});
+  const fc2=(x-4.3)/(XC-4.3);
+  return R({key:'Ldt+Fe3C',zone:'s3',name:'Ledeburita + cementita',phases:ph,micro:[lay(FE.Cp,fc2),lay(FE.Ldt,1-fc2)],tie});
+}
+SYS.fec={
+  id:'fec', short:'Fe–C', kind:'Aceros y fundiciones', A:'Fe', B:'C', unit:'% C', dec:2, xmax:6.69, step:0.01, Tmin:400, Tmax:1650, Tlow:500, L2:true,
+  desc:'Diagrama hierro–carbono (Fe–Fe₃C). El hierro cambia de estructura cristalina con la temperatura (alotropía) y disuelve distinta cantidad de carbono en cada una: la austenita γ (FCC) hasta 2,1 % y la ferrita α (BCC) como máximo ≈0,025 %. Menos de 2,1 % C: aceros. Entre 2,1 y 6,69 % C: fundiciones.',
+  note:'Valores del libro: 1539, 1148, 910 y 723 °C; 0,89 / 2,1 / 4,3 / 6,69 % C. Las referencias actuales (ASM, Callister) dan 1538, 1147, 912 y 727 °C y 0,76 / 2,14 / 4,30 / 6,70 % C. Igual que en el libro se omite la zona del hierro δ (por encima de ≈1400 °C). Abreviaturas: L = líquido, P = perlita, Led = ledeburita, Fe₃C = cementita. En la microestructura, la cementita aparece blanca y la perlita oscura, como en una probeta atacada con nital.',
+  xTitle:'Contenido en carbono (% en peso de C)', xTicks:[0,0.89,2.1,4.3,6.69], xTicksZoom:[0,0.5,0.89,1.5,2.1], xKey:[0.89,2.1,4.3,6.69],
+  yTicks:[400,723,910,1148,1539], yKey:[723,910,1148,1539],
+  def:{x:0.45,T:760},
+  labels:[['Líquido',3.4,1460],['γ + L',1.5,1330],['Fe₃C + L',5.75,1180],['γ',0.8,1010],['γ + Fe₃C',1.78,860],['γ + Led + Fe₃C',3.2,950],['Led + Fe₃C',5.5,950],['α + P',0.42,560],['P + Fe₃C',1.5,560],['P + Led + Fe₃C',3.2,560],['Led + Fe₃C',5.5,560]],
+  labelsZoom:[['Líquido',1.1,1570],['γ + L',1.25,1380],['Austenita γ',0.75,1030],['α + γ',0.3,785],['γ + Fe₃C',1.78,880],['Ferrita + perlita',0.42,560],['Perlita + cementita',1.55,560]],
+  guides:[[0.89,400,723,'perlita'],[4.3,400,1148,'ledeburita']],
+  eq,
+  reaction(x,T){
+    if(Math.abs(T-723)<1) return {name:'Reacción eutectoide (723 °C)',text:'La austenita que queda (0,89 % C) se transforma a temperatura constante en perlita: láminas alternas de ferrita (≈0,025 % C) y cementita (6,69 % C).'};
+    if(Math.abs(T-1148)<1) return {name:'Reacción eutéctica (1148 °C)',text:'El líquido que queda (4,3 % C) se transforma a temperatura constante en ledeburita: austenita (2,1 % C) + cementita (6,69 % C).'};
+    if(Math.abs(T-910)<1) return {name:'Cambio alotrópico γ → α (910 °C)',text:'El hierro puro pasa de austenita (FCC) a ferrita (BCC) a temperatura constante.'};
+    return {name:'Solidificación del hierro puro',text:'El hierro puro solidifica a 1539 °C constantes (meseta).'};
+  },
+  solidChange(prev,next){
+    if(next==='α+γ') return 'Corta la línea A3: empieza a formarse ferrita proeutectoide en los bordes de grano de la austenita. La austenita que queda se enriquece en carbono.';
+    if(next==='γ+Fe3C') return 'Corta la línea Acm: el carbono sobrante sale de la austenita como cementita secundaria, que forma una red en los bordes de grano.';
+    if(next==='α' && prev==='α+γ') return 'La austenita termina de transformarse en ferrita.';
+    if(next==='α+Fe3C(III)') return 'Corta el <b>límite de la ferrita</b>: la ferrita ya no puede disolver todo el carbono y precipita una cantidad muy pequeña de cementita terciaria.';
+    return null;
+  },
+  lines:[
+    {id:'liq',cls:'liq',name:'Liquidus',paths:[liqL.samp(),liqR.samp()],info:{
+      que:'Inicio de la solidificación. Baja desde 1539 °C (hierro puro) hasta el punto eutéctico (4,3 % C, 1148 °C) y vuelve a subir hacia la cementita.',
+      como:'Primer cambio de pendiente en las curvas de enfriamiento.',
+      cruzar:'Con menos de 4,3 % C aparecen cristales de austenita; con más de 4,3 % C, de cementita primaria.'}},
+    {id:'sol',cls:'sol',name:'Solidus',paths:[sol.samp()],info:{
+      que:'Fin de la solidificación de los aceros (hasta 2,1 % C): por debajo toda la pieza es austenita. Para las fundiciones el solidus es la isoterma de 1148 °C.',
+      como:'Segundo cambio de pendiente en la curva de enfriamiento de los aceros.',
+      cruzar:'Solidifica el último líquido y el acero queda como austenita homogénea.'}},
+    {id:'eut',cls:'iso',name:'Isoterma eutéctica (1148 °C)',paths:[[[2.1,1148],[XC,1148]]],info:{
+      que:'Horizontal entre 2,1 % y 6,69 % C. Todas las fundiciones terminan de solidificar a esta temperatura.',
+      como:'Meseta en la curva de enfriamiento de las fundiciones.',
+      cruzar:'Reacción eutéctica: L (4,3 % C) → austenita (2,1 % C) + cementita (6,69 % C). La mezcla resultante se llama ledeburita.'}},
+    {id:'A3',cls:'trans',name:'Línea A3',paths:[A3.samp()],info:{
+      que:'Temperatura a la que, al enfriar un acero hipoeutectoide (menos de 0,89 % C), la austenita empieza a transformarse en ferrita. Baja de 910 °C (hierro puro) a 723 °C (0,89 % C).',
+      como:'En el hierro puro es una meseta (cambio alotrópico γ → α). En los aceros es un cambio de pendiente pequeño; se mide con análisis térmico o dilatometría.',
+      cruzar:'Nace ferrita proeutectoide en los bordes de grano de la austenita. Para templar estos aceros se calientan unos 30–50 °C por encima de A3, hasta que son totalmente austeníticos.'}},
+    {id:'Acm',cls:'trans',name:'Línea Acm',paths:[Acm.samp()],info:{
+      que:'Límite de solubilidad del carbono en la austenita: sube de 0,89 % C a 723 °C hasta 2,1 % C a 1148 °C.',
+      como:'Cambio de pendiente, pequeño, en la curva de enfriamiento de los aceros hipereutectoides.',
+      cruzar:'En los aceros hipereutectoides (más de 0,89 % C) el carbono sobrante sale como cementita secundaria, que forma una red en los bordes de grano. Esa red hace el acero más frágil.'}},
+    {id:'A1',cls:'iso',name:'Isoterma eutectoide A1 (723 °C)',paths:[[[0.025,723],[XC,723]]],info:{
+      que:'Horizontal a 723 °C. Por debajo ya no puede existir austenita en equilibrio.',
+      como:'Meseta en la curva de enfriamiento de los aceros: la transformación libera calor.',
+      cruzar:'Reacción eutectoide: austenita (0,89 % C) → ferrita (≈0,025 % C) + cementita (6,69 % C), en láminas alternas. Ese constituyente es la perlita.'}},
+    {id:'ferr',cls:'trans thin',name:'Límite de la ferrita',paths:[FU.samp(8),FL.samp(8)],info:{
+      que:'La ferrita (BCC) apenas disuelve carbono: como máximo ≈0,025 % a 723 °C. A la izquierda de esta línea solo hay ferrita. Amplía la zona de aceros para verla.',
+      como:'Se determina por metalografía y medidas de solubilidad, no con curvas de enfriamiento.',
+      cruzar:'Si se supera la solubilidad, el carbono precipita como cementita terciaria, en cantidades muy pequeñas.'}},
+    {id:'lim',cls:'lim',name:'Acero / fundición (2,1 % C)',paths:[[[2.1,400],[2.1,1148]]],info:{
+      que:'Máxima solubilidad del carbono en la austenita. Con menos de 2,1 % C la aleación es un acero; con más, una fundición.',
+      como:'Es el extremo izquierdo de la isoterma eutéctica: allí se cortan solidus, Acm y la isoterma de 1148 °C.',
+      cruzar:'Un acero puede calentarse hasta ser 100 % austenita, que es dúctil, y por eso se puede forjar y laminar. Una fundición siempre contiene ledeburita, dura y frágil: se moldea, no se forja.'}},
+    {id:'cem',cls:'iso',name:'Cementita (6,69 % C)',paths:[[[XC,400],[XC,1250]]],info:{
+      que:'Vertical del carburo de hierro Fe₃C, un compuesto con 6,69 % C. Es el límite derecho del diagrama.',
+      como:'Corresponde a un compuesto de composición fija, no a una solución sólida.',
+      cruzar:'La cementita es muy dura y frágil. Su proporción en la aleación determina buena parte de la dureza.'}}
+  ],
+  points:[
+    {id:'pS',x:0.89,T:723,name:'Punto eutectoide (0,89 % C, 723 °C)',info:{que:'Composición de la perlita. Un acero con 0,89 % C es 100 % perlita a temperatura ambiente.',como:'Su curva de enfriamiento tiene una única meseta en estado sólido, a 723 °C.',cruzar:'Toda la austenita se transforma a la vez en perlita.'}},
+    {id:'pC',x:4.3,T:1148,name:'Punto eutéctico (4,3 % C, 1148 °C)',info:{que:'Composición de la ledeburita. La fundición eutéctica es la aleación Fe–C con menor temperatura de fusión.',como:'Su curva de enfriamiento tiene una meseta a 1148 °C sin tramo previo de pendiente suave.',cruzar:'Todo el líquido se transforma en ledeburita.'}},
+    {id:'pE',x:2.1,T:1148,name:'Máxima solubilidad del C en γ (2,1 %)',info:{que:'La austenita disuelve como máximo 2,1 % C, a 1148 °C.',como:'Extremo izquierdo de la isoterma eutéctica.',cruzar:'Marca la frontera entre aceros y fundiciones.'}},
+    {id:'p910',x:0,T:910,name:'Cambio alotrópico del Fe (910 °C)',info:{que:'El hierro puro pasa de γ (FCC) a α (BCC) a 910 °C.',como:'Meseta en estado sólido en la curva del hierro puro.',cruzar:'La red cristalina cambia y el hierro pasa a disolver mucho menos carbono.'}},
+    {id:'pF',x:0,T:1539,name:'Fusión del hierro (1539 °C)',info:{que:'Punto de fusión del hierro puro según el libro (1538 °C en las referencias actuales).',como:'Meseta en la curva de enfriamiento.',cruzar:'Solidifica a temperatura constante.'}}
+  ],
+  alloys:[
+    {name:'Acero C20 / AISI 1020',x:0.20,uses:'Ejes poco cargados, tornillería, piezas de calderería y piezas para cementar. Fácil de soldar y conformar.',note:''},
+    {name:'Acero C45 / AISI 1045',x:0.45,uses:'Ejes, engranajes, cigüeñales y bielas. Se suele templar y revenir.',note:''},
+    {name:'Acero ≈0,8 % C (AISI 1080)',x:0.80,uses:'Carriles de ferrocarril, alambre para muelles y cuerdas de piano: casi todo perlita.',note:'Con el eutectoide real (0,76 %) es prácticamente eutectoide; con el 0,89 % del libro sale algo hipoeutectoide.'},
+    {name:'Acero AISI 1095',x:0.95,uses:'Herramientas de corte, cuchillos y flejes de muelle: perlita con una red de cementita secundaria.',note:''},
+    {name:'Fundición blanca hipoeutéctica',x:3.0,uses:'Muy dura y resistente al desgaste, pero frágil y difícil de mecanizar: bolas de molino y revestimientos de trituradoras.',note:''},
+    {name:'Fundición eutéctica',x:4.3,uses:'Solidifica a temperatura constante a 1148 °C y es toda ledeburita.',note:''}
+  ],
+  globalNote:'Las fundiciones grises (bloques de motor, discos de freno) tienen el carbono en forma de grafito gracias al silicio y al enfriamiento lento. Siguen el diagrama estable Fe–C, no este diagrama metaestable Fe–Fe₃C.',
+  extra(x){
+    if(x<0.89-0.004 && x>0.025) return `Austenización completa (por encima de A3): ≈${fmt(A3.T(x),0)} °C. Para templar se suele calentar unos 30–50 °C por encima.`;
+    if(x>0.89+0.004 && x<=2.1) return `Austenización completa (por encima de Acm): ≈${fmt(Acm.T(x),0)} °C. Para templar no se llega a Acm: se calienta algo por encima de A1 (723 °C) para conservar carburos sin disolver, que aumentan la resistencia al desgaste.`;
+    if(Math.abs(x-0.89)<=0.004) return 'Austenización completa: por encima de 723 °C';
+    return null;
+  }
+};
+}
+
+/* ---------- simulación de enfriamiento ---------- */
+function Hfun(s,x){
+  const Rg=s.Tmax-s.Tmin, Lh=0.3*Rg, L2=s.L2?0.15*Rg:0;
+  return T=>{const e=s.eq(x,T); return T+Lh*e.fL+L2*e.fG;};
+}
+/* Meseta = discontinuidad real de H(T). Se compara el salto de H a dos escalas:
+   en un salto verdadero no depende de la ventana; en una zona bifásica muy estrecha
+   (pendiente grande pero continua) se reduce proporcionalmente con la ventana. */
+function isJump(Hf,T){
+  const d1=Hf(T+0.02)-Hf(T-0.02); if(d1<0.03) return false;
+  const d2=Hf(T+0.002)-Hf(T-0.002); return d2>0.6*d1;
+}
+function coolPath(s,x){
+  const Rg=s.Tmax-s.Tmin, Ta=s.Tmin-0.3*Rg, Hf=Hfun(s,x);
+  const Tend=s.Tend!=null?s.Tend:s.Tmin+0.012*Rg, dt=0.0025;
+  let T=s.Tmax, H=Hf(T), t=0; const pts=[];
+  const push=()=>{const Hp=Hf(T+0.02), Hm=Hf(T-0.02); pts.push({t,T,H,Hp,Hm,jump:isJump(Hf,T)});};
+  push();
+  while(T>Tend && pts.length<9000){
+    H-=(T-Ta)*dt; t+=dt;
+    let lo=T-(T-Ta)*dt-0.05, hi=T+0.01;
+    for(let k=0;k<34;k++){const m=(lo+hi)/2; if(Hf(m)<H) lo=m; else hi=m;}
+    T=(lo+hi)/2; push();
+  }
+  const tot=pts[pts.length-1].t||1; for(const p of pts) p.tn=p.t/tot;
+  return pts;
+}
+function blend(a,b,p){
+  const slots=[], map={};
+  const add=(l,side)=>{const s=l.slot||l.key; if(!map[s]){map[s]={a:[],b:[]}; slots.push(map[s]);} map[s][side].push(l);};
+  b.micro.forEach(l=>add(l,'b')); a.micro.forEach(l=>add(l,'a'));
+  const micro=[];
+  for(const sl of slots){
+    const seen=new Set();
+    for(const l of sl.b){const la=sl.a.find(z=>z.key===l.key); micro.push(Object.assign({},l,{f:la?(1-p)*la.f+p*l.f:p*l.f})); seen.add(l.key);}
+    for(const l of sl.a) if(!seen.has(l.key)) micro.push(Object.assign({},l,{f:(1-p)*l.f}));
+  }
+  const phases=[], ids={};
+  for(const ph of a.phases){ ids[ph.id]=Object.assign({},ph,{f:(1-p)*ph.f}); phases.push(ids[ph.id]); }
+  for(const ph of b.phases){ if(ids[ph.id]){ ids[ph.id].f+=p*ph.f; } else { const o=Object.assign({},ph,{f:p*ph.f}); ids[ph.id]=o; phases.push(o);} }
+  return Object.assign({},b,{micro,phases:phases.filter(q=>q.f>0.0005),fL:(1-p)*a.fL+p*b.fL,reacting:true,p,tie:null,clever:null});
+}
+function eqAtStep(s,x,pt){
+  if(!pt.jump) return s.eq(x,pt.T);
+  const p=clamp((pt.Hp-pt.H)/(pt.Hp-pt.Hm),0,1);
+  const e=blend(s.eq(x,pt.T+0.02),s.eq(x,pt.T-0.02),p);
+  e.rx=s.reaction(x,pt.T); return e;
+}
+function pathEvents(s,x,path){
+  const ev=[]; let prevKey=null, prevFL=1, inJump=false;
+  for(let i=0;i<path.length;i++){
+    const p=path[i], e=p.jump?s.eq(x,p.T-0.02):s.eq(x,p.T), key=e.key;
+    if(p.jump && !inJump){
+      inJump=true; const above=s.eq(x,p.T+0.02); const rx=s.reaction(x,p.T);
+      ev.push({i,t:p.tn,T:p.T,kind:'jump',aboveL:above.fL>0,text:`<b>${rx.name}.</b> ${rx.text}`});
+      prevKey=key; prevFL=e.fL; continue;
+    }
+    if(!p.jump && inJump){ inJump=false; ev.push({i,t:p.tn,T:p.T,kind:'end',text:'Termina la meseta: la transformación ha acabado y la temperatura vuelve a bajar.'}); }
+    if(prevKey!==null && key!==prevKey && !p.jump){
+      /* temperatura exacta del cruce: bisección entre el paso anterior y el actual */
+      const q=path[i-1]; let hi=q.T, lo=p.T;
+      for(let k=0;k<32;k++){const m=(lo+hi)/2; if(s.eq(x,m).key===prevKey) hi=m; else lo=m;}
+      const Tx=(lo+hi)/2, tx=q.tn+(p.tn-q.tn)*clamp((q.T-Tx)/((q.T-p.T)||1),0,1);
+      let text;
+      if(prevKey==='L'){ const sp=s.eq(x,lo).phases.find(q=>q.id!=='L'); text=`Corta la <b>liquidus</b>: empieza la solidificación. Aparecen los primeros cristales de ${sp?sp.name:'sólido'}${sp&&s.id!=='bicd'?' con '+fmt(sp.c,s.dec)+' '+s.unit:''} (regla de la horizontal).`; }
+      else if(prevFL>0 && e.fL===0) text='Corta la <b>solidus</b>: solidifica la última gota de líquido.';
+      else if(s.solidChange && s.solidChange(prevKey,key)) text=s.solidChange(prevKey,key);
+      else if(key==='a+b') text='Corta la <b>solvus</b>: el sólido ya no admite tanto soluto y precipita la otra fase dentro de los granos.';
+      else text=`Entra en la zona «${e.name}».`;
+      ev.push({i,t:tx,T:Tx,kind:'change',from:prevKey,fromL:prevFL>0,toL:e.fL>0,text});
+    }
+    prevKey=key; prevFL=e.fL;
+  }
+  return ev;
+}
+function solidRange(s,x){
+  let lo=s.Tmin, hi=s.Tmax;
+  for(let k=0;k<46;k++){const m=(lo+hi)/2; if(s.eq(x,m).fL<1-1e-9) lo=m; else hi=m;}
+  const Tl=lo; lo=s.Tmin; hi=s.Tmax;
+  for(let k=0;k<46;k++){const m=(lo+hi)/2; if(s.eq(x,m).fL<=1e-9) lo=m; else hi=m;}
+  return {Tl,Ts:lo};
+}
+
+/* ---------- microscopio ---------- */
+const MS=180;
+const MIC=(()=>{
+  let sd=11; const rnd=()=>{sd=(sd*16807)%2147483647; return sd/2147483647;};
+  const C=MS/2, RAD=MS/2-1, seeds=[]; let tries=0;
+  while(seeds.length<17 && tries<6000){tries++; const a=rnd()*Math.PI*2, r=Math.sqrt(rnd())*(RAD+12), x=C+r*Math.cos(a), y=C+r*Math.sin(a);
+    if(seeds.every(q=>Math.hypot(q.x-x,q.y-y)>31)) seeds.push({x,y,ang:rnd()*Math.PI,tint:0.94+rnd()*0.08});}
+  const N=MS*MS, idx=new Int16Array(N), d1=new Float32Array(N), bd=new Float32Array(N), d1n=new Float32Array(N), inside=[], maxd=new Float32Array(seeds.length);
+  for(let y=0;y<MS;y++) for(let x=0;x<MS;x++){
+    const p=y*MS+x, px=x+0.5, py=y+0.5; let a=1e9,b=1e9,ia=0;
+    for(let k=0;k<seeds.length;k++){const dd=Math.hypot(seeds[k].x-px,seeds[k].y-py); if(dd<a){b=a;a=dd;ia=k;} else if(dd<b) b=dd;}
+    idx[p]=ia; d1[p]=a; bd[p]=(b-a)/2;
+    if(Math.hypot(px-C,py-C)<=RAD){inside.push(p); if(a>maxd[ia]) maxd[ia]=a;}
+  }
+  for(const p of inside) d1n[p]=d1[p]/(maxd[idx[p]]||1);
+  const order1=inside.slice().sort((u,v)=>d1n[u]-d1n[v]);
+  const orderB=inside.slice().sort((u,v)=>bd[u]-bd[v]);
+  const cv=$('#ms'), ctx=cv.getContext('2d'); const img=ctx.createImageData(MS,MS); const D=img.data;
+  const lab=new Int8Array(N);
+  function draw(layers,t){
+    lab.fill(-1); const Nin=inside.length;
+    let j=0;
+    layers.forEach((l,i)=>{ if(l.assign!=='bound') return; let n=Math.round(clamp(l.f,0,1)*Nin); while(n>0 && j<Nin){ lab[orderB[j]]=i; j++; n--; } });
+    const core=[]; layers.forEach((l,i)=>{ if(l.assign!=='bound' && l.f>1e-4) core.push(i); });
+    let ci=0, rem=core.length?Math.round(layers[core[0]].f*Nin):0;
+    for(let k=0;k<Nin;k++){ const p=order1[k]; if(lab[p]!==-1) continue;
+      while(ci<core.length-1 && rem<=0){ ci++; rem=Math.round(layers[core[ci]].f*Nin); }
+      if(core.length){ lab[p]=core[ci]; rem--; } }
+    D.fill(0);
+    for(const p of inside){
+      const L=layers[lab[p]]; if(!L) continue;
+      const x=p%MS, y=(p/MS)|0; let c=L.c1, k=1;
+      if(L.look==='liq'){ k=0.86+0.09*Math.sin(x*0.085+y*0.05+t*1.8)+0.06*Math.sin(y*0.11-x*0.04-t*1.2); }
+      else if(L.look==='solid'){ if(L.gb && bd[p]<1.1) k=0.52; else k=seeds[idx[p]].tint; }
+      else if(L.look==='lam'){ const a=seeds[idx[p]].ang; const sv=Math.sin((x*Math.cos(a)+y*Math.sin(a))*L.k); c=sv>0.15?L.c2:L.c1; if(bd[p]<0.9) k=0.75; }
+      else if(L.look==='leb'){ const v=Math.sin(x*0.62+1.3*Math.sin(y*0.21))*Math.sin(y*0.62+1.1*Math.sin(x*0.17)); c=v>0.32?L.c2:L.c1; }
+      const r=Math.hypot(x-C+0.5,y-C+0.5)/RAD; k*=1-0.28*Math.max(0,r-0.72)/0.28;
+      const o=p*4; D[o]=c[0]*k; D[o+1]=c[1]*k; D[o+2]=c[2]*k; D[o+3]=255;
+    }
+    ctx.putImageData(img,0,0);
+  }
+  return {draw};
+})();
+function swatchCSS(l){
+  if(l.look==='lam') return `background:repeating-linear-gradient(45deg,${rgb(l.c1)} 0 2px,${rgb(l.c2)} 2px 4px)`;
+  if(l.look==='leb') return `background:radial-gradient(circle,${rgb(l.c2)} 30%,transparent 35%) 0 0/5px 5px,${rgb(l.c1)}`;
+  return `background:${rgb(l.c1)}`;
+}
+
+/* ---------- estado del explorador ---------- */
+const ORDER=['cuni','bicd','pbsn','fec'];
+const st={sys:'cuni',x:35,T:1250,zoom:false,path:null,events:[],idx:null,shown:0,anim:null,sel:'liq',alloy:null};
+const S=()=>SYS[st.sys];
+const GM={ml:56,mr:16,mt:12,mb:52};
+function view(){const s=S(); return {x0:0,x1:(s.id==='fec'&&st.zoom)?2.2:s.xmax,T0:s.Tmin,T1:s.Tmax};}
+let G=null;
+function isDark(){const t=document.documentElement.getAttribute('data-theme'); if(t) return t==='dark'; return matchMedia('(prefers-color-scheme: dark)').matches;}
+
+let regCache={key:'',url:''};
+function regionURL(s,v,pw,ph){
+  const key=[s.id,v.x1,Math.round(pw),Math.round(ph),isDark()].join('|');
+  if(regCache.key===key) return regCache.url;
+  const cw=Math.max(2,Math.ceil(pw/2)), ch=Math.max(2,Math.ceil(ph/2)); const c=document.createElement('canvas'); c.width=cw; c.height=ch; const ctx=c.getContext('2d');
+  const cols={liq:cssv('--z-liq'),mix:cssv('--z-mix'),s1:cssv('--z-s1'),s2:cssv('--z-s2'),s3:cssv('--z-s3')};
+  for(let i=0;i<cw;i++){ const x=v.x0+(i+0.5)/cw*(v.x1-v.x0); let prev=null,start=0;
+    for(let j=0;j<ch;j++){ const T=v.T1-(j+0.5)/ch*(v.T1-v.T0); const z=s.eq(x,T).zone;
+      if(z!==prev){ if(prev){ctx.fillStyle=cols[prev]; ctx.fillRect(i,start,1,j-start);} prev=z; start=j; } }
+    ctx.fillStyle=cols[prev]; ctx.fillRect(i,start,1,ch-start);
+  }
+  regCache={key,url:c.toDataURL()}; return regCache.url;
+}
+function pathD(pts,sx,sy){return 'M'+pts.map(p=>P1(sx(p[0]))+','+P1(sy(p[1]))).join('L');}
+
+function drawDiagram(){
+  const svg=$('#dg'); const W=Math.max(240,svg.clientWidth), H=Math.max(240,svg.clientHeight);
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  const s=S(), v=view(), pw=W-GM.ml-GM.mr, ph=H-GM.mt-GM.mb;
+  const sx=x=>GM.ml+(x-v.x0)/(v.x1-v.x0)*pw, sy=T=>GM.mt+(v.T1-T)/(v.T1-v.T0)*ph;
+  G={W,H,pw,ph,sx,sy,v};
+  let h=`<defs><clipPath id="clipDg"><rect x="${GM.ml}" y="${GM.mt}" width="${pw}" height="${ph}"/></clipPath></defs>`;
+  h+=`<rect class="pbg" x="${GM.ml}" y="${GM.mt}" width="${pw}" height="${ph}"/>`;
+  h+=`<image href="${regionURL(s,v,pw,ph)}" x="${GM.ml}" y="${GM.mt}" width="${pw}" height="${ph}" preserveAspectRatio="none"/>`;
+  const xt=(s.id==='fec'&&st.zoom)?s.xTicksZoom:s.xTicks, xk=s.xKey||[];
+  for(const x of xt){ const X=sx(x); h+=`<line class="grid" x1="${P1(X)}" x2="${P1(X)}" y1="${GM.mt}" y2="${GM.mt+ph}"/><text class="tick${xk.includes(x)?' key':''}" x="${P1(X)}" y="${GM.mt+ph+15}" text-anchor="middle">${num(x)}</text>`; }
+  for(const T of s.yTicks){ const Y=sy(T); h+=`<line class="grid" x1="${GM.ml}" x2="${GM.ml+pw}" y1="${P1(Y)}" y2="${P1(Y)}"/><text class="tick${s.yKey.includes(T)?' key':''}" x="${GM.ml-6}" y="${P1(Y+3.5)}" text-anchor="end">${num(T)}</text>`; }
+  h+=`<line class="axis" x1="${GM.ml}" x2="${GM.ml+pw}" y1="${GM.mt+ph}" y2="${GM.mt+ph}"/><line class="axis" x1="${GM.ml}" x2="${GM.ml}" y1="${GM.mt}" y2="${GM.mt+ph}"/>`;
+  h+=`<text class="endl" x="${GM.ml}" y="${GM.mt+ph+31}">100 % ${s.A}</text>`;
+  if(!(s.id==='fec')) h+=`<text class="endl" x="${GM.ml+pw}" y="${GM.mt+ph+31}" text-anchor="end">100 % ${s.B}</text>`;
+  else if(!st.zoom) h+=`<text class="endl" x="${GM.ml+pw}" y="${GM.mt+ph+31}" text-anchor="end">Fe₃C</text>`;
+  h+=`<text class="axt" x="${GM.ml+pw/2}" y="${H-5}" text-anchor="middle">${s.xTitle}</text>`;
+  h+=`<text class="axt" transform="translate(13 ${GM.mt+ph/2}) rotate(-90)" text-anchor="middle">Temperatura (°C)</text>`;
+  h+=`<g clip-path="url(#clipDg)">`;
+  for(const g of (s.guides||[])){ const X=sx(g[0]); h+=`<line class="guide" x1="${P1(X)}" x2="${P1(X)}" y1="${P1(sy(g[2]))}" y2="${P1(sy(g[1]))}"/><text class="gtext" transform="translate(${P1(X-4)} ${P1(sy(g[1])-6)}) rotate(-90)">${g[3]}</text>`; }
+  for(const l of s.lines){ for(const pts of l.paths){ const d=pathD(pts,sx,sy); h+=`<path class="ln ${l.cls}${st.sel===l.id?' on':''}" data-ln="${l.id}" d="${d}"/>`; } }
+  for(const l of s.lines){ for(const pts of l.paths){ h+=`<path class="hit" data-line="${l.id}" d="${pathD(pts,sx,sy)}"><title>${l.name}</title></path>`; } }
+  h+=`</g>`;
+  const labs=(s.id==='fec'&&st.zoom)?s.labelsZoom:s.labels;
+  for(const [t,x,T] of labs){ if(x<v.x0||x>v.x1) continue; h+=`<text class="rlabel" x="${P1(sx(x))}" y="${P1(sy(T)+4)}" text-anchor="middle">${t}</text>`; }
+  for(const p of s.points){ if(p.x<v.x0||p.x>v.x1) continue; h+=`<circle class="kp${st.sel===p.id?' on':''}" data-line="${p.id}" cx="${P1(sx(p.x))}" cy="${P1(sy(p.T))}" r="5"><title>${p.name}</title></circle>`; }
+  h+=`<g id="dyn"></g>`;
+  svg.innerHTML=h;
+}
+function drawDyn(e){
+  if(!G) return; const s=S(), {sx,sy,pw,ph}=G; const X=sx(st.x), Y=sy(st.T); let h='';
+  h+=`<line class="vline" x1="${P1(X)}" x2="${P1(X)}" y1="${GM.mt}" y2="${GM.mt+ph}"/>`;
+  h+=`<line class="hline" x1="${GM.ml}" x2="${GM.ml+pw}" y1="${P1(Y)}" y2="${P1(Y)}"/>`;
+  if(e.tie && !e.reacting){
+    const a=clamp(sx(e.tie.l),GM.ml,GM.ml+pw), b=clamp(sx(e.tie.r),GM.ml,GM.ml+pw);
+    h+=`<line class="drop" x1="${P1(a)}" x2="${P1(a)}" y1="${P1(Y)}" y2="${GM.mt+ph}"/><line class="drop" x1="${P1(b)}" x2="${P1(b)}" y1="${P1(Y)}" y2="${GM.mt+ph}"/>`;
+    h+=`<line class="tie" x1="${P1(a)}" x2="${P1(b)}" y1="${P1(Y)}" y2="${P1(Y)}"/>`;
+    h+=`<circle class="tend" cx="${P1(a)}" cy="${P1(Y)}" r="3.6"/><circle class="tend" cx="${P1(b)}" cy="${P1(Y)}" r="3.6"/>`;
+    const close=Math.abs(b-a)<40;
+    h+=`<text class="tlab" x="${P1(a)}" y="${P1(Y-9)}" text-anchor="${close?'end':'middle'}">b′</text><text class="tlab" x="${P1(b)}" y="${P1(Y-9)}" text-anchor="${close?'start':'middle'}">b″</text>`;
+    h+=`<text class="tcomp" x="${P1(a+(close?-3:3))}" y="${GM.mt+ph-6}" text-anchor="${close?'end':'start'}">${fmt(e.tie.l,s.dec)}</text><text class="tcomp" x="${P1(b+(close?3:-3))}" y="${GM.mt+ph-6}" text-anchor="${close?'start':'end'}">${fmt(e.tie.r,s.dec)}</text>`;
+  }
+  h+=`<circle class="pt" cx="${P1(X)}" cy="${P1(Y)}" r="6.5"/><text class="ptl" x="${P1(X+10)}" y="${P1(Y+16)}">b</text>`;
+  $('#dyn').innerHTML=h;
+}
+function drawCurve(){
+  const svg=$('#cv'); const W=Math.max(140,svg.clientWidth), H=Math.max(160,svg.clientHeight);
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  const s=S(), v=view(), ml=10, mr=12, pw=W-ml-mr, ph=H-GM.mt-GM.mb;
+  const sy=T=>GM.mt+(v.T1-T)/(v.T1-v.T0)*ph, sx=t=>ml+t*pw;
+  let h=`<rect class="pbg" x="${ml}" y="${GM.mt}" width="${pw}" height="${ph}"/>`;
+  for(const T of s.yKey){ const Y=sy(T); h+=`<line class="gridk" x1="${ml}" x2="${ml+pw}" y1="${P1(Y)}" y2="${P1(Y)}"/><text class="tick" x="${ml+pw-3}" y="${P1(Y-4)}" text-anchor="end">${num(T)} °C</text>`; }
+  h+=`<line class="axis" x1="${ml}" x2="${ml+pw}" y1="${GM.mt+ph}" y2="${GM.mt+ph}"/><line class="axis" x1="${ml}" x2="${ml}" y1="${GM.mt}" y2="${GM.mt+ph}"/>`;
+  h+=`<text class="axt" x="${ml+pw/2}" y="${GM.mt+ph+31}" text-anchor="middle">Tiempo →</text>`;
+  h+=`<line class="hline" x1="${ml}" x2="${ml+pw}" y1="${P1(sy(st.T))}" y2="${P1(sy(st.T))}"/>`;
+  if(st.path){
+    const P=st.path, n=Math.min(st.shown,P.length-1);
+    let d='M'; const stepK=Math.max(1,Math.floor(P.length/700));
+    for(let i=0;i<=n;i+=stepK) d+=(i?'L':'')+P1(sx(P[i].tn))+','+P1(sy(P[i].T));
+    d+='L'+P1(sx(P[n].tn))+','+P1(sy(P[n].T));
+    h+=`<path class="cpath" d="${d}"/>`;
+    const placed=[];
+    st.events.forEach((ev,k)=>{ if(ev.i>n) return; const X=sx(ev.t), Y=sy(ev.T);
+      let lx=X, ly=Y; while(placed.some(q=>Math.hypot(q[0]-lx,q[1]-ly)<16)){ lx+=9; ly-=13; }
+      placed.push([lx,ly]);
+      if(lx!==X) h+=`<line class="drop" x1="${P1(X)}" y1="${P1(Y)}" x2="${P1(lx)}" y2="${P1(ly)}"/><circle class="tend" cx="${P1(X)}" cy="${P1(Y)}" r="2.2"/>`;
+      h+=`<circle class="evdot" cx="${P1(lx)}" cy="${P1(ly)}" r="7.5"/><text class="evnum" x="${P1(lx)}" y="${P1(ly)}">${k+1}</text>`; });
+    if(st.idx!=null){ const p=P[st.idx]; h+=`<circle class="pt" cx="${P1(sx(p.tn))}" cy="${P1(sy(p.T))}" r="5.5"/>`; }
+  } else {
+    h+=`<text class="placeholder" x="${ml+pw/2}" y="${GM.mt+ph/2-8}" text-anchor="middle">Pulsa «Enfriar»</text><text class="placeholder" x="${ml+pw/2}" y="${GM.mt+ph/2+10}" text-anchor="middle">para trazar la curva</text>`;
+  }
+  svg.innerHTML=h;
+}
+
+/* ---------- lectura ---------- */
+const mrow=(a,b)=>`<mrow><mn>${a}</mn><mo>−</mo><mn>${b}</mn></mrow>`;
+function leverHTML(s,e){
+  if(e.reacting) return `<p class="lv">Punto invariante: coexisten tres fases a la vez y la temperatura no cambia hasta que termina la reacción. Aquí no se aplica la regla de la palanca.</p>`;
+  if(!e.tie) return `<h3 class="h3">Regla de la palanca</h3><p class="lv">Una sola fase: su composición es la de la aleación (punto b) y su proporción es el 100 %.</p>`;
+  const t=e.tie, d=s.dec, u=s.unit, bL=fmt(t.l,d), bR=fmt(t.r,d), b=fmt(st.x,d);
+  const wl=clamp((t.r-st.x)/(t.r-t.l),0,1), wr=1-wl;
+  return `<h3 class="h3">Regla de la horizontal</h3>
+  <p class="lv">La horizontal por b corta en <b>b′ = ${bL} ${u}</b> (${t.lLine}) → composición de ${t.ln}, y en <b>b″ = ${bR} ${u}</b> (${t.rLine}) → composición de ${t.rn}.</p>
+  <h3 class="h3">Regla de la palanca (segmentos inversos)</h3>
+  <div class="mbox"><math display="block"><mrow><msub><mi>w</mi><mtext>${t.ln}</mtext></msub><mo>=</mo><mfrac><mrow><mi>b″</mi><mo>−</mo><mi>b</mi></mrow><mrow><mi>b″</mi><mo>−</mo><mi>b′</mi></mrow></mfrac><mo>=</mo><mfrac>${mrow(bR,b)}${mrow(bR,bL)}</mfrac><mo>=</mo><mn>${fmt(wl,3)}</mn></mrow></math>
+  <math display="block"><mrow><msub><mi>w</mi><mtext>${t.rn}</mtext></msub><mo>=</mo><mfrac><mrow><mi>b</mi><mo>−</mo><mi>b′</mi></mrow><mrow><mi>b″</mi><mo>−</mo><mi>b′</mi></mrow></mfrac><mo>=</mo><mfrac>${mrow(b,bL)}${mrow(bR,bL)}</mfrac><mo>=</mo><mn>${fmt(wr,3)}</mn></mrow></math></div>`;
+}
+function cleverHTML(s,e){
+  const c=e.clever; if(!c||e.reacting) return '';
+  const d=s.dec;
+  return `<h3 class="h3">Proporción de ${c.name} (palanca aplicada a los constituyentes)</h3>
+  <div class="mbox"><math display="block"><mrow><msub><mi>w</mi><mtext>${c.name}</mtext></msub><mo>=</mo><mfrac>${mrow(fmt(c.a,d),fmt(c.b,d))}${mrow(fmt(c.c,d),fmt(c.d,d))}</mfrac><mo>=</mo><mn>${fmt(c.val,3)}</mn></mrow></math></div>
+  <p class="small">Se aplica justo por debajo de la isoterma ${s.id==='fec'?'eutectoide (723 °C)':'eutéctica'}, entre los extremos de esa horizontal y el punto ${s.id==='fec'?'eutectoide':'eutéctico'}.</p>`;
+}
+function updateReadout(e){
+  const s=S();
+  $('#roCoord').textContent=`${fmt(st.x,s.dec)} ${s.unit} · ${fmt(st.T,0)} °C`;
+  const z=$('#roZone'); z.textContent=e.reacting?(e.rx?e.rx.name:'Reacción'):e.name; z.className='chip z-'+(e.reacting?'liq':e.zone);
+  const rr=$('#roReact');
+  if(e.reacting && e.rx){ rr.hidden=false; rr.innerHTML=`<b>${e.rx.name} · temperatura constante</b>${e.rx.text}<div class="prog"><i style="width:${(100*e.p).toFixed(1)}%"></i></div><span class="small">Transformado: ${pct(e.p)}</span>`; }
+  else rr.hidden=true;
+  $('#roPhases').innerHTML=e.phases.map(p=>`<li><span class="sw" style="background:${rgb(p.col)}"></span><span>${p.name}</span><span class="pc mono">${fmt(p.c,s.dec)} ${s.unit}</span><span class="pf mono">${pct(p.f)}</span><span class="bar"><i style="width:${(100*p.f).toFixed(1)}%"></i></span></li>`).join('');
+  $('#roLever').innerHTML=leverHTML(s,e);
+  $('#roMicro').innerHTML=e.micro.filter(l=>l.f>0.0005).map(l=>`<li><span class="sw" style="${swatchCSS(l)}"></span><span>${l.name}</span><span class="mono">${pct(l.f)}</span></li>`).join('');
+  $('#roCLever').innerHTML=cleverHTML(s,e);
+}
+function updateEvents(){
+  const ol=$('#events');
+  if(!st.path){ ol.innerHTML=`<li class="empty" style="display:block">Elige una composición y pulsa «Enfriar desde líquido». Aquí aparecerá, paso a paso, cada línea que cruza la aleación y lo que ocurre en ella.</li>`; return; }
+  const items=st.events.map((ev,k)=>({ev,k})).filter(o=>o.ev.i<=st.shown);
+  if(!items.length){ ol.innerHTML=`<li><span class="evn">·</span><span class="evt mono">${fmt(st.T,0)} °C</span><span>Aleación líquida enfriándose.</span></li>`; return; }
+  ol.innerHTML=items.map(o=>`<li><span class="evn">${o.k+1}</span><span class="evt mono">${fmt(o.ev.T,0)} °C</span><span>${o.ev.text}</span></li>`).join('');
+}
+function current(){ const s=S(); if(st.path && st.idx!=null) return eqAtStep(s,st.x,st.path[st.idx]); return s.eq(st.x,st.T); }
+let rafPending=false;
+function render(){
+  const e=current(); drawDyn(e); drawCurve(); updateReadout(e);
+  MIC.draw(e.micro, st.anim&&st.anim.playing?performance.now()/1000:0);
+  updateEvents(); syncSliders();
+}
+function syncSliders(){
+  const s=S(); $('#xIn').value=st.x; $('#tIn').value=st.T;
+  $('#xOut').textContent=`${fmt(st.x,s.dec)} ${s.unit}`; $('#tOut').textContent=`${fmt(st.T,0)} °C`;
+  $('#coolBtn').textContent=st.anim&&st.anim.playing?'Pausa':(st.anim&&st.anim.prog<1&&st.path?'Continuar':'Enfriar desde líquido');
+}
+
+/* ---------- animación ---------- */
+function stopAnim(){ if(st.anim) st.anim.playing=false; }
+function startCool(){
+  const s=S(); st.path=coolPath(s,st.x); st.events=pathEvents(s,st.x,st.path); st.shown=0; st.idx=0;
+  st.anim={prog:0,last:performance.now(),playing:true}; requestAnimationFrame(tick);
+}
+function tick(now){
+  const a=st.anim; if(!a||!a.playing) return;
+  const dur=parseFloat($('#speed').value)||10;
+  a.prog=Math.min(1,a.prog+Math.min(0.1,(now-a.last)/1000)/dur); a.last=now;
+  const P=st.path; let lo=0, hi=P.length-1; while(lo<hi){const m=(lo+hi+1)>>1; if(P[m].tn<=a.prog) lo=m; else hi=m-1;}
+  st.idx=lo; st.shown=Math.max(st.shown,lo); st.T=P[lo].T;
+  if(a.prog>=1){ a.playing=false; st.shown=P.length-1; }
+  render();
+  if(a.playing) requestAnimationFrame(tick);
+}
+
+/* ---------- paneles inferiores ---------- */
+function lineColor(cls){ const m={liq:'--c-liq',sol:'--c-sol',iso:'--c-iso',solv:'--c-solv',trans:'--c-trans',lim:'--c-lim'}; return `var(${m[cls.split(' ')[0]]||'--ink'})`; }
+function renderChips(){
+  const s=S(); let h='';
+  for(const l of s.lines) h+=`<button class="lchip" data-sel="${l.id}" aria-pressed="${st.sel===l.id}"><i style="background:${lineColor(l.cls)}"></i>${l.name}</button>`;
+  for(const p of s.points) h+=`<button class="lchip" data-sel="${p.id}" aria-pressed="${st.sel===p.id}"><i style="background:var(--ink);width:8px;height:8px;border-radius:50%"></i>${p.name}</button>`;
+  $('#lineChips').innerHTML=h;
+  const it=s.lines.find(l=>l.id===st.sel)||s.points.find(p=>p.id===st.sel);
+  $('#lineInfo').innerHTML=it?`<h4>${it.name}</h4><dl><dt>Qué es</dt><dd>${it.info.que}</dd><dt>Cómo se obtiene</dt><dd>${it.info.como}</dd><dt>Al cruzarla enfriando</dt><dd>${it.info.cruzar}</dd></dl>`:'';
+}
+function selectLine(id){
+  st.sel=id; renderChips();
+  document.querySelectorAll('#dg [data-ln]').forEach(el=>el.classList.toggle('on',el.dataset.ln===id));
+  document.querySelectorAll('#dg circle.kp').forEach(el=>el.classList.toggle('on',el.dataset.line===id));
+}
+function renderAlloys(){
+  const s=S();
+  $('#alloyList').innerHTML=s.alloys.map((a,i)=>`<button class="abtn" data-alloy="${i}" aria-pressed="${st.alloy===i}">${a.name}<small>${fmt(a.x,s.dec)} ${s.unit}</small></button>`).join('');
+  const det=$('#alloyDetail');
+  if(st.alloy==null){ det.innerHTML=`<p class="small">Toca una aleación: se coloca en el diagrama y se enfría desde líquido.</p>${s.globalNote?`<p class="small">${s.globalNote}</p>`:''}`; return; }
+  const a=s.alloys[st.alloy], r=solidRange(s,a.x), low=s.eq(a.x,s.Tlow);
+  const solid=Math.abs(r.Tl-r.Ts)<0.6?`a ${fmt(r.Tl,0)} °C constantes (meseta)`:`entre ${fmt(r.Tl,0)} °C (inicio) y ${fmt(r.Ts,0)} °C (fin)`;
+  const cons=low.micro.filter(l=>l.f>0.0005).map(l=>`${l.name} ${pct(l.f)}`).join(' · ');
+  const ex=s.extra?s.extra(a.x):null;
+  det.innerHTML=`<h4>${a.name}</h4><p>${a.uses}</p>
+  <dl class="kv"><dt>Composición</dt><dd class="mono">${fmt(a.x,s.dec)} ${s.unit}</dd><dt>Solidifica</dt><dd>${solid}</dd>${ex?`<dt>Tratamiento</dt><dd>${ex}</dd>`:''}<dt>${s.id==='fec'?'Bajo 723 °C':'Estado final'}</dt><dd>${cons}</dd></dl>
+  ${a.note?`<p class="small">${a.note}</p>`:''}${s.globalNote?`<p class="small">${s.globalNote}</p>`:''}`;
+}
+
+/* ---------- configuración de sistema ---------- */
+function renderSysbar(){
+  $('#sysbar').innerHTML=ORDER.map(id=>`<button class="sysbtn" data-sys="${id}" aria-pressed="${st.sys===id}"><b>${SYS[id].short}</b><span>${SYS[id].kind}</span></button>`).join('');
+}
+function setSys(id){
+  stopAnim(); st.sys=id; const s=S(); st.x=s.def.x; st.T=s.def.T; st.zoom=false; st.path=null; st.events=[]; st.idx=null; st.shown=0; st.anim=null; st.alloy=null;
+  st.sel=s.lines[0].id;
+  $('#zoomIn').checked=false; $('#zoomWrap').hidden=s.id!=='fec';
+  const xi=$('#xIn'); xi.min=0; xi.step=s.step; xi.max=s.xmax;
+  const ti=$('#tIn'); ti.min=s.Tmin; ti.max=s.Tmax; ti.step=1;
+  $('#sysdesc').textContent=s.desc; $('#sysnote').textContent=s.note;
+  renderSysbar(); renderChips(); renderAlloys(); drawDiagram(); render();
+}
+
+/* ---------- eventos UI ---------- */
+$('#sysbar').addEventListener('click',ev=>{const b=ev.target.closest('[data-sys]'); if(b && b.dataset.sys!==st.sys) setSys(b.dataset.sys);});
+$('#lineChips').addEventListener('click',ev=>{const b=ev.target.closest('[data-sel]'); if(b) selectLine(b.dataset.sel);});
+function setZoom(on){
+  const s=S(); st.zoom=!!on && s.id==='fec'; $('#zoomIn').checked=st.zoom;
+  $('#xIn').max=st.zoom?2.2:s.xmax;
+  if(st.zoom && st.x>2.2){ stopAnim(); st.x=2.2; st.path=null; st.events=[]; st.idx=null; st.alloy=null; renderAlloys(); }
+  drawDiagram(); render();
+}
+$('#alloyList').addEventListener('click',ev=>{const b=ev.target.closest('[data-alloy]'); if(!b) return; st.alloy=+b.dataset.alloy; stopAnim(); st.x=S().alloys[st.alloy].x;
+  if(st.zoom && st.x>2.2) setZoom(false); renderAlloys(); startCool();});
+$('#xIn').addEventListener('input',ev=>{stopAnim(); st.x=+ev.target.value; st.path=null; st.events=[]; st.idx=null; st.alloy=null; renderAlloys(); render();});
+$('#tIn').addEventListener('input',ev=>{stopAnim(); st.T=+ev.target.value; st.idx=null; render();});
+$('#coolBtn').addEventListener('click',()=>{
+  const a=st.anim;
+  if(a&&a.playing){ a.playing=false; syncSliders(); return; }
+  if(a&&st.path&&a.prog<1&&st.idx!=null){ a.playing=true; a.last=performance.now(); requestAnimationFrame(tick); syncSliders(); return; }
+  startCool();
+});
+$('#resetBtn').addEventListener('click',()=>setSys(st.sys));
+$('#zoomIn').addEventListener('change',ev=>setZoom(ev.target.checked));
+(function(){
+  const svg=$('#dg'); let drag=false;
+  const setFrom=ev=>{ if(!G) return; const r=svg.getBoundingClientRect(); const px=ev.clientX-r.left, py=ev.clientY-r.top; const v=G.v, s=S();
+    let x=v.x0+(px-GM.ml)/G.pw*(v.x1-v.x0), T=v.T1-(py-GM.mt)/G.ph*(v.T1-v.T0);
+    x=clamp(x,v.x0,v.x1); T=clamp(T,v.T0,v.T1); const stp=s.step; x=Math.round(x/stp)*stp; x=+x.toFixed(4);
+    if(Math.abs(x-st.x)>1e-9){ st.path=null; st.events=[]; st.alloy=null; renderAlloys(); }
+    st.x=x; st.T=Math.round(T); st.idx=null; render(); };
+  svg.addEventListener('pointerdown',ev=>{ stopAnim(); drag=true; try{svg.setPointerCapture(ev.pointerId);}catch(_){} const hit=ev.target.closest&&ev.target.closest('[data-line]'); if(hit) selectLine(hit.dataset.line); setFrom(ev); });
+  svg.addEventListener('pointermove',ev=>{ if(drag) setFrom(ev); });
+  const end=()=>{drag=false;}; svg.addEventListener('pointerup',end); svg.addEventListener('pointercancel',end);
+  /* teclado: flechas mueven el punto b (Mayús = paso grande) */
+  svg.addEventListener('keydown',ev=>{
+    const s=S(), v=view(), big=ev.shiftKey?10:1; let dx=0, dT=0;
+    if(ev.key==='ArrowLeft') dx=-1; else if(ev.key==='ArrowRight') dx=1; else if(ev.key==='ArrowUp') dT=1; else if(ev.key==='ArrowDown') dT=-1; else return;
+    ev.preventDefault(); stopAnim();
+    if(dx){ st.x=+clamp(st.x+dx*s.step*big,v.x0,v.x1).toFixed(4); st.path=null; st.events=[]; st.alloy=null; renderAlloys(); }
+    if(dT) st.T=clamp(st.T+dT*big*(s.id==='fec'?5:1),v.T0,v.T1);
+    st.idx=null; render();
+  });
+})();
+
+/* ===================== Vista «Cómo se forma» ===================== */
+const step=(a,b,d)=>{const o=[]; for(let v=a;v<=b+1e-9;v+=d) o.push(+v.toFixed(2)); return o;};
+/* Conjuntos de composiciones por densidad. En Pb–Sn se incluyen 18,3 y 97,8 % (extremos de la isoterma) y 61,9 % (eutéctico). */
+const BUILD={
+  cuni:{6:[0,20,40,60,80,100],11:step(0,100,10),21:step(0,100,5)},
+  pbsn:{6:[0,10,30,61.9,80,100],11:[0,5,10,18.3,30,40,50,61.9,75,90,100],21:[0,2.5,5,7.5,10,12.5,15,18.3,25,30,40,50,55,61.9,65,70,80,90,95,97.8,100]},
+  bicd:{6:[0,20,40,70,100],11:step(0,100,10),21:step(0,100,5)}
+};
+const B={sys:'cuni',items:[],cur:0,prog:0,playing:false,chain:false,joined:false,last:0,gen:0,dens:11,instant:false};
+function bInit(id){
+  B.sys=id; const s=SYS[id];
+  B.instant=false;
+  B.items=BUILD[id][B.dens].map(x=>{ const path=coolPath(s,x), ev=pathEvents(s,x,path), r=solidRange(s,x); const ar=[];
+    for(const e of ev){
+      if(e.kind==='change' && e.from==='L') ar.push({type:'liq',T:r.Tl,t:e.t});
+      else if(e.kind==='change' && e.fromL && !e.toL) ar.push({type:'sol',T:r.Ts,t:e.t});
+      else if(e.kind==='jump' && e.aboveL){ const had=ar.some(o=>o.type==='liq'); ar.push({type:had?'eut':'pure',T:e.T,t:e.t}); }
+    }
+    return {x,path,ar,r}; });
+  B.cur=0; B.prog=0; B.playing=false; B.chain=false; B.joined=false;
+  $('#bseg').innerHTML=['cuni','pbsn','bicd'].map(k=>`<button data-b="${k}" aria-pressed="${k===id}">${SYS[k].short}</button>`).join('');
+  bDraw(); bText(); bTable(); bButtons();
+}
+function bLabel(s,x){ if(x<=0) return `${s.A} puro`; if(x>=s.xmax) return `${s.B} puro`; return `${num(x)} % ${s.B}`; }
+function bDraw(){
+  const svg=$('#bs'); const W=Math.max(300,svg.clientWidth||300); const side=W>=700; const H=side?470:800;
+  svg.style.height=H+'px'; svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  const s=SYS[B.sys]; let C,D;
+  if(side){ const mid=Math.round(W*0.5); C={x0:56,x1:mid-12,y0:40,y1:H-62}; D={x0:mid+34,x1:W-58,y0:40,y1:H-62}; }
+  else { C={x0:52,x1:W-14,y0:40,y1:360}; D={x0:52,x1:W-14,y0:440,y1:H-62}; }
+  const yC=T=>C.y0+(s.Tmax-T)/(s.Tmax-s.Tmin)*(C.y1-C.y0), yD=T=>D.y0+(s.Tmax-T)/(s.Tmax-s.Tmin)*(D.y1-D.y0), xD=x=>D.x0+x/s.xmax*(D.x1-D.x0);
+  const n=B.items.length, sw=(C.x1-C.x0)/n, xC=(i,t)=>C.x0+i*sw+7+t*(sw-14);
+  let h='';
+  h+=`<text class="ptitle" x="${C.x0}" y="${C.y0-16}">1 · Curvas de enfriamiento</text><text class="ptitle" x="${D.x0}" y="${D.y0-16}">2 · Diagrama de fases</text>`;
+  h+=`<rect class="pbg" x="${C.x0}" y="${C.y0}" width="${C.x1-C.x0}" height="${C.y1-C.y0}"/><rect class="pbg" x="${D.x0}" y="${D.y0}" width="${D.x1-D.x0}" height="${D.y1-D.y0}"/>`;
+  for(const T of s.yTicks){
+    h+=`<line class="grid" x1="${C.x0}" x2="${C.x1}" y1="${P1(yC(T))}" y2="${P1(yC(T))}"/><text class="tick${s.yKey.includes(T)?' key':''}" x="${C.x0-6}" y="${P1(yC(T)+3.5)}" text-anchor="end">${num(T)}</text>`;
+    h+=`<line class="grid" x1="${D.x0}" x2="${D.x1}" y1="${P1(yD(T))}" y2="${P1(yD(T))}"/>`;
+    h+= side?`<text class="tick${s.yKey.includes(T)?' key':''}" x="${D.x1+6}" y="${P1(yD(T)+3.5)}">${num(T)}</text>`:`<text class="tick${s.yKey.includes(T)?' key':''}" x="${D.x0-6}" y="${P1(yD(T)+3.5)}" text-anchor="end">${num(T)}</text>`;
+  }
+  for(let i=0;i<n;i++){ if(i) h+=`<line class="grid" x1="${P1(C.x0+i*sw)}" x2="${P1(C.x0+i*sw)}" y1="${C.y0}" y2="${C.y1}"/>`;
+    const every=sw>=46?1:(sw>=24?2:4), xi=B.items[i].x, isEnd=xi<=0||xi>=s.xmax;
+    const lbl=sw>=62?bLabel(s,xi):(isEnd?(xi<=0?s.A:s.B):num(xi));
+    if(i%every===0||i===n-1) h+=`<text class="tick key" x="${P1(C.x0+i*sw+sw/2)}" y="${C.y1+15}" text-anchor="middle">${lbl}</text>`; }
+  h+=`<line class="axis" x1="${C.x0}" x2="${C.x1}" y1="${C.y1}" y2="${C.y1}"/><line class="axis" x1="${C.x0}" x2="${C.x0}" y1="${C.y0}" y2="${C.y1}"/>`;
+  h+=`<text class="axt" x="${(C.x0+C.x1)/2}" y="${C.y1+34}" text-anchor="middle">${sw>=62?'Tiempo → (cada columna, una aleación)':`Cada columna: una aleación (% ${s.B}) · tiempo →`}</text>`;
+  h+=`<text class="axt" transform="translate(14 ${(C.y0+C.y1)/2}) rotate(-90)" text-anchor="middle">Temperatura (°C)</text>`;
+  for(const x of s.xTicks) h+=`<text class="tick${(s.xKey||[]).includes(x)?' key':''}" x="${P1(xD(x))}" y="${D.y1+15}" text-anchor="middle">${num(x)}</text>`;
+  h+=`<line class="axis" x1="${D.x0}" x2="${D.x1}" y1="${D.y1}" y2="${D.y1}"/><line class="axis" x1="${side?D.x1:D.x0}" x2="${side?D.x1:D.x0}" y1="${D.y0}" y2="${D.y1}"/>`;
+  h+=`<text class="endl" x="${D.x0}" y="${D.y1+31}">100 % ${s.A}</text><text class="endl" x="${D.x1}" y="${D.y1+31}" text-anchor="end">100 % ${s.B}</text>`;
+  h+=`<text class="axt" x="${(D.x0+D.x1)/2}" y="${D.y1+46}" text-anchor="middle">${s.xTitle}</text>`;
+  if(B.joined){
+    for(const l of s.lines){ if(!['liq','sol','eut'].includes(l.id)) continue; for(const pts of l.paths) h+=`<path class="ln ${l.cls}" d="${'M'+pts.map(p=>P1(xD(p[0]))+','+P1(yD(p[1]))).join('L')}"/>`; }
+    const tl=[['Líquido',0.45,0.86]]; for(const [t,fx,fy] of tl) h+=`<text class="rlabel" x="${P1(D.x0+fx*(D.x1-D.x0))}" y="${P1(D.y0+(1-fy)*(D.y1-D.y0))}" text-anchor="middle">${t}</text>`;
+    for(const [t,x,T] of s.labels.slice(1)) h+=`<text class="rlabel" x="${P1(xD(x))}" y="${P1(yD(T)+4)}" text-anchor="middle">${t}</text>`;
+  }
+  B.items.forEach((it,i)=>{
+    if(i>B.cur || (i===B.cur && B.prog<=0)) return;
+    const lim=i<B.cur?1:B.prog; const P=it.path; let d='';
+    for(let k=0;k<P.length;k+=2){ if(P[k].tn>lim) break; d+=(d?'L':'M')+P1(xC(i,P[k].tn))+','+P1(yC(P[k].T)); }
+    h+=`<path class="cpath" d="${d}"/>`;
+    for(const a of it.ar){ if(a.t>lim) continue; const cx=xC(i,a.t), cy=yC(a.T), dx=xD(it.x), dy=yD(a.T);
+      if(side && n<=11) h+=`<line class="proj" x1="${P1(cx)}" x2="${P1(dx)}" y1="${P1(cy)}" y2="${P1(dy)}"/>`;
+      const r1=sw<40?3:4.5, r2=n>11?4:5.5;
+      h+=`<circle class="ar-${a.type}" cx="${P1(cx)}" cy="${P1(cy)}" r="${r1}"/><circle class="ar-${a.type}" cx="${P1(dx)}" cy="${P1(dy)}" r="${r2}" stroke="var(--surface)" stroke-width="1.5"/>`; }
+  });
+  svg.innerHTML=h;
+}
+function itemText(s,it){
+  const T0=fmt(it.r.Tl,0), T1=fmt(it.r.Ts,0), nm=bLabel(s,it.x);
+  const pure=it.ar.length===1&&it.ar[0].type==='pure';
+  if(pure && (it.x<=0||it.x>=s.xmax)) return `<h3>${nm}</h3><p>La curva tiene una <b>meseta horizontal a ${T0} °C</b>. Mientras solidifica, el calor latente que se libera compensa el calor que pierde, y la temperatura no baja hasta que todo es sólido.</p><p>En el diagrama, liquidus y solidus coinciden en un único punto a esa temperatura.</p>`;
+  if(pure) return `<h3>${nm} (composición eutéctica)</h3><p>No hay tramo de pendiente suave: la curva baja como líquido y hace una <b>única meseta a ${T0} °C</b>, igual que un metal puro. Es la aleación con el punto de fusión más bajo del sistema.</p>`;
+  if(it.ar.some(a=>a.type==='eut')) return `<h3>${nm}</h3><p>Primer <b>cambio de pendiente a ${T0} °C</b>: aparecen los primeros cristales (punto de liquidus). Después la curva baja más despacio porque se va liberando calor latente.</p><p>Al llegar a <b>${T1} °C</b> hay una <b>meseta</b>: el líquido que queda tiene la composición eutéctica y solidifica de golpe. Ese punto está sobre la isoterma eutéctica.</p>`;
+  return `<h3>${nm}</h3><p>Primer <b>cambio de pendiente a ${T0} °C</b>: aparece el primer cristal (punto de liquidus). Entre ${T0} y ${T1} °C la curva baja más despacio porque se libera calor latente de forma gradual.</p><p>Segundo <b>cambio de pendiente a ${T1} °C</b>: se solidifica la última gota (punto de solidus) y la curva vuelve a caer al ritmo del sólido.</p>`;
+}
+function bText(){
+  const s=SYS[B.sys], el=$('#bStep'), n=B.items.length;
+  if(B.joined){ el.innerHTML=`<h3>Diagrama construido</h3><p>Uniendo los puntos de <b>inicio</b> de solidificación se obtiene la <b>línea de liquidus</b>; uniendo los de <b>fin</b>, la <b>línea de solidus</b>${s.id!=='cuni'?' y la <b>isoterma eutéctica</b> (todas las mesetas a la misma temperatura)':''}.</p><p>${s.id==='pbsn'?'La línea de solvus no se ve en las curvas de enfriamiento porque la precipitación en estado sólido libera muy poco calor. Se completa con otras técnicas (metalografía, rayos X). ':''}Para las composiciones intermedias que no hemos enfriado, el diagrama se completa interpolando entre los puntos medidos.</p>`; return; }
+  if(B.playing){ const it=B.items[B.cur]; el.innerHTML=`<h3>Enfriando: ${bLabel(s,it.x)} (${B.cur+1} de ${n})</h3><p>Observa la curva mientras baja: busca dónde cambia de pendiente o se queda horizontal. Cada uno de esos puntos se proyecta sobre el diagrama, en la vertical de su composición.</p>`; return; }
+  const done=B.cur-1;
+  if(done<0){ el.innerHTML=`<h3>Cómo se construye</h3><p>Se preparan ${n} aleaciones de ${s.A} y ${s.B} con distinta composición y se enfrían muy despacio desde el estado líquido, midiendo la temperatura frente al tiempo. Cada cambio en la forma de la curva marca un punto del diagrama.</p><p>Pulsa «Enfriar la siguiente aleación» para empezar con la primera: ${bLabel(s,B.items[0].x)}.</p>`; return; }
+  const it=B.items[Math.min(done,n-1)];
+  if(B.instant && B.cur>=n){
+    const plat=B.items.filter(q=>q.ar.length===1).map(q=>bLabel(s,q.x)), eutIt=B.items.filter(q=>q.ar.some(a=>a.type==='eut')), eut=eutIt.length;
+    const TE=eut?eutIt[0].ar.find(a=>a.type==='eut').T:0;
+    el.innerHTML=`<h3>Las ${n} curvas a la vez</h3><p>Compáralas columna a columna. Tienen una <b>meseta única</b>: ${plat.join(', ')}. ${eut?`<b>${eut}</b> aleaciones tienen un codo y después una meseta a ${fmt(TE,0)} °C, todas a la misma altura: esa es la isoterma eutéctica. `:''}Las demás tienen <b>dos cambios de pendiente</b>: el de arriba da un punto de la liquidus y el de abajo uno de la solidus.</p><p>Pulsa «Unir los puntos» para trazar las líneas.</p>`;
+    return;
+  }
+  el.innerHTML=itemText(s,it)+(B.cur>=n&&!B.playing?`<p><b>Ya tienes todos los puntos.</b> Pulsa «Unir los puntos» para trazar las líneas.</p>`:'');
+}
+function bTable(){
+  const s=SYS[B.sys]; const rows=[];
+  B.items.forEach((it,i)=>{ if(i>=B.cur) return;
+    const kind=it.ar.length===1?'Meseta (T constante)':(it.ar.some(a=>a.type==='eut')?'Codo + meseta eutéctica':'Dos cambios de pendiente');
+    rows.push(`<tr><td>${bLabel(s,it.x)}</td><td class="num">${fmt(it.r.Tl,0)}</td><td class="num">${fmt(it.r.Ts,0)}</td><td>${kind}</td></tr>`); });
+  $('#bTable').innerHTML=rows.join('')||`<tr><td colspan="4" class="small">Aún no se ha enfriado ninguna aleación.</td></tr>`;
+}
+function bButtons(){
+  const n=B.items.length;
+  $('#bNext').disabled=B.playing||B.cur>=n; $('#bAll').disabled=B.playing||B.cur>=n; $('#bInstant').disabled=B.cur>=n; $('#bJoin').disabled=B.playing||B.cur<n||B.joined;
+}
+/* B.gen invalida animaciones y temporizadores pendientes al cambiar de sistema, reiniciar o salir de la pestaña */
+function bStop(){ B.gen++; B.chain=false; if(!B.items.length) return; if(B.playing){ B.playing=false; B.prog=0; } bButtons(); bText(); }
+function bPlay(chain){
+  if(B.cur>=B.items.length) return; B.playing=true; B.chain=chain; B.prog=0; B.last=performance.now(); const g=B.gen; bButtons(); bText(); requestAnimationFrame(t=>bTick(t,g));
+}
+function bTick(now,g){
+  if(!B.playing || g!==B.gen) return;
+  B.prog=Math.min(1,B.prog+Math.min(0.1,(now-B.last)/1000)/3.2); B.last=now; bDraw();
+  if(B.prog>=1){ B.playing=false; B.cur++; B.prog=0; bText(); bTable(); bButtons(); bDraw();
+    if(B.chain && B.cur<B.items.length) setTimeout(()=>{ if(g===B.gen) bPlay(true); },350); return; }
+  requestAnimationFrame(t=>bTick(t,g));
+}
+$('#bseg').addEventListener('click',ev=>{const b=ev.target.closest('[data-b]'); if(b){bStop(); bInit(b.dataset.b);}});
+$('#bNext').addEventListener('click',()=>bPlay(false));
+$('#bAll').addEventListener('click',()=>bPlay(true));
+$('#bJoin').addEventListener('click',()=>{B.joined=true; bDraw(); bText(); bButtons();});
+$('#bInstant').addEventListener('click',()=>{ bStop(); B.cur=B.items.length; B.prog=0; B.instant=true; bDraw(); bText(); bTable(); bButtons(); });
+$('#bDens').addEventListener('change',ev=>{ B.dens=+ev.target.value; bStop(); bInit(B.sys); });
+$('#bReset').addEventListener('click',()=>{bStop(); bInit(B.sys);});
+
+/* ---------- pestañas, tamaño y tema ---------- */
+function showView(v){
+  document.querySelectorAll('.tabs [data-view]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.view===v)));
+  $('#view-explore').hidden=v!=='explore'; $('#view-build').hidden=v!=='build';
+  if(v==='build'){ stopAnim(); if(!B.items.length) bInit('cuni'); else bDraw(); } else { bStop(); drawDiagram(); render(); }
+}
+document.querySelector('.tabs').addEventListener('click',ev=>{const b=ev.target.closest('[data-view]'); if(b) showView(b.dataset.view);});
+let rz=0; const redrawAll=()=>{ cancelAnimationFrame(rz); rz=requestAnimationFrame(()=>{ if(!$('#view-explore').hidden){ drawDiagram(); render(); } if(!$('#view-build').hidden) bDraw(); }); };
+if('ResizeObserver' in window){ const ro=new ResizeObserver(redrawAll); ro.observe($('#dg')); ro.observe($('#bs')); } else window.addEventListener('resize',redrawAll);
+try{ matchMedia('(prefers-color-scheme: dark)').addEventListener('change',redrawAll); }catch(_){}
+new MutationObserver(redrawAll).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+
+setSys('cuni');
+window.__test={SYS,coolPath,pathEvents,solidRange};
+})();
+</script>
+
+</body></html>
