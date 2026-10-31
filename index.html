@@ -124,6 +124,13 @@ svg.plot{width:100%;height:clamp(320px,58vh,520px);display:block;user-select:non
 .ptitle{font:600 13px var(--f-display);letter-spacing:.05em;text-transform:uppercase;fill:var(--ink-2)}
 .ar-liq{fill:var(--c-liq)} .ar-sol{fill:var(--c-sol)} .ar-eut{fill:var(--c-iso)} .ar-pure{fill:var(--accent)}
 .proj{stroke:var(--muted);stroke-width:1;stroke-dasharray:3 4;opacity:.8}
+.cs{fill:none;stroke-linejoin:round;stroke-linecap:round}
+.cs-liq{stroke:var(--muted);stroke-width:1.3;opacity:.7}
+.cs-sol{stroke:var(--ink-2);stroke-width:1.3;opacity:.7}
+.cs-mix{stroke:var(--molten);stroke-width:2.6}
+.cs-pla{stroke:var(--accent);stroke-width:4}
+.plguide{stroke:var(--accent);stroke-width:1;stroke-dasharray:6 4;opacity:.55}
+.lseg{display:inline-block;width:18px;height:0;border-top-style:solid}
 /* readout */
 .readout{display:flex;flex-direction:column;gap:10px}
 .ro-top{display:flex;flex-direction:column;gap:6px}
@@ -279,6 +286,13 @@ td.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
         <span><i class="dot" style="background:var(--c-iso)"></i>Meseta eutéctica</span>
         <span><i class="dot" style="background:var(--accent)"></i>Meseta de metal puro o eutéctico</span>
       </div>
+      <div class="legend-inline">
+        <span><i class="lseg" style="border-top-width:1.5px;border-color:var(--muted)"></i>Líquido enfriándose</span>
+        <span><i class="lseg" style="border-top-width:3px;border-color:var(--molten)"></i>Solidificando: pendiente suave (codo)</span>
+        <span><i class="lseg" style="border-top-width:4px;border-color:var(--accent)"></i>Meseta: T constante</span>
+        <span><i class="lseg" style="border-top-width:1.5px;border-color:var(--ink-2)"></i>Sólido enfriándose</span>
+      </div>
+      <p class="small" style="margin-top:6px">Eje de tiempo esquemático, como en las figuras del libro: los tramos de solidificación se amplían para que se vean los codos y las mesetas. En tiempo real la meseta ocupa una fracción menor de la curva.</p>
     </div>
     <div class="bgrid">
       <div class="panel step" id="bStep"></div>
@@ -1105,7 +1119,26 @@ function bInit(id){
       else if(e.kind==='change' && e.fromL && !e.toL) ar.push({type:'sol',T:r.Ts,t:e.t});
       else if(e.kind==='jump' && e.aboveL){ const had=ar.some(o=>o.type==='liq'); ar.push({type:had?'eut':'pure',T:e.T,t:e.t}); }
     }
-    return {x,path,ar,r}; });
+    /* Nudos de la curva: inicio/fin de cada tramo de solidificación (codos y mesetas).
+       Solo cuentan los eventos con líquido; el solvus no deja huella térmica visible. */
+    const kn=[]; let inPl=false;
+    for(const e of ev){
+      if(e.kind==='change' && (e.from==='L' || (e.fromL && !e.toL))) kn.push({t:e.t,pl:false});
+      else if(e.kind==='jump' && e.aboveL){ kn.push({t:e.t,pl:true}); inPl=true; }
+      else if(e.kind==='end' && inPl){ kn.push({t:e.t,pl:false}); inPl=false; }
+    }
+    /* Eje de tiempo esquemático: el líquido ocupa un 7 %, el sólido un 10 % y
+       cada tramo de solidificación (codo o meseta) recibe la misma anchura. */
+    const kt=kn.map(k=>k.t), m=kt.length;
+    const ku=m<2?kt.map(()=>0.5):kt.map((_,j)=>0.07+0.83*j/(m-1));
+    const warp=t=>{
+      if(!m) return t;
+      if(t<=kt[0]) return kt[0]>0?ku[0]*t/kt[0]:ku[0];
+      for(let j=1;j<m;j++) if(t<=kt[j]) return ku[j-1]+(ku[j]-ku[j-1])*(t-kt[j-1])/((kt[j]-kt[j-1])||1);
+      return ku[m-1]+(1-ku[m-1])*(t-kt[m-1])/((1-kt[m-1])||1);
+    };
+    const segOf=t=>{ if(!m||t<kt[0]) return 'liq'; if(t>=kt[m-1]) return 'sol'; let j=0; while(j<m-1 && t>=kt[j+1]) j++; return kn[j].pl?'pla':'mix'; };
+    return {x,path,ar,r,warp,segOf}; });
   B.cur=0; B.prog=0; B.playing=false; B.chain=false; B.joined=false;
   $('#bseg').innerHTML=['cuni','pbsn','bicd'].map(k=>`<button data-b="${k}" aria-pressed="${k===id}">${SYS[k].short}</button>`).join('');
   bDraw(); bText(); bTable(); bButtons();
@@ -1118,7 +1151,7 @@ function bDraw(){
   if(side){ const mid=Math.round(W*0.5); C={x0:56,x1:mid-12,y0:40,y1:H-62}; D={x0:mid+34,x1:W-58,y0:40,y1:H-62}; }
   else { C={x0:52,x1:W-14,y0:40,y1:360}; D={x0:52,x1:W-14,y0:440,y1:H-62}; }
   const yC=T=>C.y0+(s.Tmax-T)/(s.Tmax-s.Tmin)*(C.y1-C.y0), yD=T=>D.y0+(s.Tmax-T)/(s.Tmax-s.Tmin)*(D.y1-D.y0), xD=x=>D.x0+x/s.xmax*(D.x1-D.x0);
-  const n=B.items.length, sw=(C.x1-C.x0)/n, xC=(i,t)=>C.x0+i*sw+7+t*(sw-14);
+  const n=B.items.length, sw=(C.x1-C.x0)/n, pad=sw<50?3:7, xC=(i,t)=>C.x0+i*sw+pad+t*(sw-2*pad);
   let h='';
   h+=`<text class="ptitle" x="${C.x0}" y="${C.y0-16}">1 · Curvas de enfriamiento</text><text class="ptitle" x="${D.x0}" y="${D.y0-16}">2 · Diagrama de fases</text>`;
   h+=`<rect class="pbg" x="${C.x0}" y="${C.y0}" width="${C.x1-C.x0}" height="${C.y1-C.y0}"/><rect class="pbg" x="${D.x0}" y="${D.y0}" width="${D.x1-D.x0}" height="${D.y1-D.y0}"/>`;
@@ -1143,12 +1176,25 @@ function bDraw(){
     const tl=[['Líquido',0.45,0.86]]; for(const [t,fx,fy] of tl) h+=`<text class="rlabel" x="${P1(D.x0+fx*(D.x1-D.x0))}" y="${P1(D.y0+(1-fy)*(D.y1-D.y0))}" text-anchor="middle">${t}</text>`;
     for(const [t,x,T] of s.labels.slice(1)) h+=`<text class="rlabel" x="${P1(xD(x))}" y="${P1(yD(T)+4)}" text-anchor="middle">${t}</text>`;
   }
+  /* Guías horizontales en las temperaturas de meseta ya registradas: muestran que todas las mesetas eutécticas están a la misma altura */
+  const plT=new Set();
+  B.items.forEach((it,i)=>{ if(i>B.cur) return; const lim=i<B.cur?1:B.prog; for(const a of it.ar) if((a.type==='eut'||a.type==='pure') && it.warp(a.t)<=lim) plT.add(Math.round(a.T*10)/10); });
+  for(const T of plT) h+=`<line class="plguide" x1="${C.x0}" x2="${C.x1}" y1="${P1(yC(T))}" y2="${P1(yC(T))}"/>`;
   B.items.forEach((it,i)=>{
     if(i>B.cur || (i===B.cur && B.prog<=0)) return;
-    const lim=i<B.cur?1:B.prog; const P=it.path; let d='';
-    for(let k=0;k<P.length;k+=2){ if(P[k].tn>lim) break; d+=(d?'L':'M')+P1(xC(i,P[k].tn))+','+P1(yC(P[k].T)); }
-    h+=`<path class="cpath" d="${d}"/>`;
-    for(const a of it.ar){ if(a.t>lim) continue; const cx=xC(i,a.t), cy=yC(a.T), dx=xD(it.x), dy=yD(a.T);
+    const lim=i<B.cur?1:B.prog; const P=it.path;
+    /* curva partida en tramos (líquido · codo · meseta · sólido), cada uno con su estilo */
+    let cur=null, d='', last=null;
+    const flush=()=>{ if(cur && d) h+=`<path class="cs cs-${cur}" d="${d}"/>`; };
+    for(let k=0;k<P.length;k++){
+      const u=it.warp(P[k].tn); if(u>lim) break;
+      const sg=it.segOf(P[k].tn), pt=P1(xC(i,u))+','+P1(yC(P[k].T));
+      if(sg!==cur){ flush(); cur=sg; d=last?('M'+last+'L'+pt):('M'+pt); }
+      else d+='L'+pt;
+      last=pt;
+    }
+    flush();
+    for(const a of it.ar){ const ua=it.warp(a.t); if(ua>lim) continue; const cx=xC(i,ua), cy=yC(a.T), dx=xD(it.x), dy=yD(a.T);
       if(side && n<=11) h+=`<line class="proj" x1="${P1(cx)}" x2="${P1(dx)}" y1="${P1(cy)}" y2="${P1(dy)}"/>`;
       const r1=sw<40?3:4.5, r2=n>11?4:5.5;
       h+=`<circle class="ar-${a.type}" cx="${P1(cx)}" cy="${P1(cy)}" r="${r1}"/><circle class="ar-${a.type}" cx="${P1(dx)}" cy="${P1(dy)}" r="${r2}" stroke="var(--surface)" stroke-width="1.5"/>`; }
@@ -1225,5 +1271,4 @@ setSys('cuni');
 window.__test={SYS,coolPath,pathEvents,solidRange};
 })();
 </script>
-
 </body></html>
