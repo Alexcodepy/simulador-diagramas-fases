@@ -108,6 +108,9 @@ svg.plot{width:100%;height:clamp(320px,58vh,520px);display:block;user-select:non
 .kp{fill:var(--surface);stroke:var(--ink);stroke-width:1.6;cursor:pointer}
 .kp.on{fill:var(--accent);stroke:var(--accent)}
 .vline{stroke:var(--accent);stroke-width:1.2;stroke-dasharray:4 4}
+.vsnap{stroke:var(--accent);stroke-width:2.6;opacity:.85}
+.snaptag rect{fill:var(--accent)}
+.snaptag text{font:600 11.5px var(--f-body);fill:var(--accent-ink)}
 .hline{stroke:var(--ink-2);stroke-width:1;stroke-dasharray:2 4;opacity:.8}
 .tie{stroke:var(--ink);stroke-width:2.4}
 .drop{stroke:var(--ink-2);stroke-width:1;stroke-dasharray:3 3}
@@ -237,6 +240,7 @@ td.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
             <label class="sel" for="speed"><span>Velocidad</span>
               <select id="speed"><option value="18">Lenta</option><option value="10" selected>Normal</option><option value="4.5">Rápida</option></select>
             </label>
+            <label class="chk" title="Pega la composición a los puntos críticos (eutéctico, eutectoide, metales puros…) cuando pasas cerca"><input type="checkbox" id="magnetIn" checked> Imán en puntos críticos</label>
             <label class="chk" id="zoomWrap" hidden><input type="checkbox" id="zoomIn"> Ampliar aceros (0–2,2 % C)</label>
           </div>
         </div>
@@ -382,6 +386,7 @@ SYS.cuni={
   note:'Datos: fusión del Cu a 1085 °C y del Ni a 1455 °C. Liquidus y solidus aproximadas a partir del diagrama de referencia (Callister; ASM Handbook, vol. 3). A 35 % Ni y 1250 °C: líquido con ≈32 % Ni y sólido con ≈43 % Ni.',
   xTitle:'Composición (% en peso de Ni)', xTicks:[0,10,20,30,40,50,60,70,80,90,100], yTicks:[1000,1085,1200,1300,1400,1455,1550], yKey:[1085,1455],
   def:{x:35,T:1250},
+  snapTol:1.5, snaps:[{x:0,n:'Cu puro'},{x:100,n:'Ni puro'}],
   labels:[['Líquido',30,1470],['α + L',70,1358],['Solución sólida α',48,1110]],
   eq(x,T){
     const Tl=liq.T(x), Ts=sol.T(x);
@@ -478,6 +483,7 @@ SYS.bicd={
   note:'Datos: fusión del Bi 271,4 °C y del Cd 321,1 °C; eutéctico a ≈144 °C y ≈40 % Cd. La solubilidad en sólido real es muy pequeña y aquí se toma como nula. Ramas de liquidus aproximadas.',
   xTitle:'Composición (% en peso de Cd)', xTicks:[0,20,40,60,80,100], yTicks:[0,50,100,144,200,271.4,321.1], yKey:[144,271.4,321.1],
   def:{x:20,T:180},
+  snapTol:1.5, snaps:[{x:0,n:'Bi puro'},{x:40,n:'Eutéctico · 100 % eutéctico'},{x:100,n:'Cd puro'}],
   labels:[['Líquido',55,310],['Bi + L',14,188],['Cd + L',76,205],['Bi + Cd (sólido)',50,75]],
   eq:makeEut(c), reaction:eutReaction(c),
   lines:[
@@ -520,6 +526,7 @@ SYS.pbsn={
   note:'Datos: fusión del Pb 327,5 °C y del Sn 232 °C; eutéctico a 183 °C y 61,9 % Sn; solubilidad máxima 18,3 % Sn en α y 97,8 % Sn en β (Callister; ASM). Curvas de solvus aproximadas.',
   xTitle:'Composición (% en peso de Sn)', xTicks:[0,18.3,40,61.9,80,100], yTicks:[0,50,100,150,183,232,327.5], yKey:[183,232,327.5], xKey:[18.3,61.9],
   def:{x:40,T:210},
+  snapTol:1.2, snaps:[{x:0,n:'Pb puro'},{x:18.3,n:'Límite de α (18,3 % Sn)'},{x:61.9,n:'Eutéctico · 100 % eutéctico'},{x:97.8,n:'Límite de β (97,8 % Sn)'},{x:100,n:'Sn puro'}],
   labels:[['Líquido',45,305],['α',5,215],['α + L',33,212],['β + L',82,191],['α + β',50,90]],
   eq:makeEut(c), reaction:eutReaction(c),
   lines:[
@@ -637,6 +644,7 @@ SYS.fec={
   xTitle:'Contenido en carbono (% en peso de C)', xTicks:[0,0.89,2.1,4.3,6.69], xTicksZoom:[0,0.5,0.89,1.5,2.1], xKey:[0.89,2.1,4.3,6.69],
   yTicks:[400,723,910,1148,1539], yKey:[723,910,1148,1539],
   def:{x:0.45,T:760},
+  snapTol:0.06, snaps:[{x:0,n:'Hierro puro'},{x:0.89,n:'Eutectoide · 100 % perlita'},{x:2.1,n:'Límite acero / fundición'},{x:4.3,n:'Eutéctico · 100 % ledeburita'},{x:6.69,n:'Cementita'}],
   labels:[['Líquido',3.4,1460],['γ + L',1.5,1330],['Fe₃C + L',5.75,1180],['γ',0.8,1010],['γ + Fe₃C',1.78,860],['γ + Led + Fe₃C',3.2,950],['Led + Fe₃C',5.5,950],['α + P',0.42,560],['P + Fe₃C',1.5,560],['P + Led + Fe₃C',3.2,560],['Led + Fe₃C',5.5,560]],
   labelsZoom:[['Líquido',1.1,1570],['γ + L',1.25,1380],['Austenita γ',0.75,1030],['α + γ',0.3,785],['γ + Fe₃C',1.78,880],['Ferrita + perlita',0.42,560],['Perlita + cementita',1.55,560]],
   guides:[[0.89,400,723,'perlita'],[4.3,400,1148,'ledeburita']],
@@ -851,7 +859,7 @@ function swatchCSS(l){
 
 /* ---------- estado del explorador ---------- */
 const ORDER=['cuni','bicd','pbsn','fec'];
-const st={sys:'cuni',x:35,T:1250,zoom:false,path:null,events:[],idx:null,shown:0,anim:null,sel:'liq',alloy:null};
+const st={sys:'cuni',x:35,T:1250,zoom:false,path:null,events:[],idx:null,shown:0,anim:null,sel:'liq',alloy:null,gen:0,magnet:true};
 const S=()=>SYS[st.sys];
 const GM={ml:56,mr:16,mt:12,mb:52};
 function view(){const s=S(); return {x0:0,x1:(s.id==='fec'&&st.zoom)?2.2:s.xmax,T0:s.Tmin,T1:s.Tmax};}
@@ -902,6 +910,21 @@ function drawDiagram(){
   h+=`<g id="dyn"></g>`;
   svg.innerHTML=h;
 }
+/* Imán: si la composición cae cerca de un punto crítico, se pega exactamente a él.
+   tolPx: tolerancia en píxeles del diagrama; tolX: tolerancia en unidades de composición (deslizador). */
+function magnetX(x,tolPx,tolX){
+  const s=S(), v=view();
+  if(st.magnet && s.snaps){
+    let best=null, bd=Infinity;
+    for(const sn of s.snaps){ if(sn.x<v.x0-1e-9||sn.x>v.x1+1e-9) continue;
+      const d=tolPx!=null&&G ? Math.abs(G.sx(sn.x)-G.sx(x)) : Math.abs(sn.x-x), lim=tolPx!=null&&G?tolPx:tolX;
+      /* radio máximo en composición, para no tapar aleaciones reales cercanas (p. ej. 0,80 % C junto al 0,89 %) */
+      if(d<=lim && Math.abs(sn.x-x)<=s.snapTol && d<bd){ bd=d; best=sn; } }
+    if(best) return best.x;
+  }
+  return +(Math.round(x/s.step)*s.step).toFixed(4);
+}
+const snapAt=x=>(S().snaps||[]).find(sn=>Math.abs(sn.x-x)<1e-9);
 function drawDyn(e){
   if(!G) return; const s=S(), {sx,sy,pw,ph}=G; const X=sx(st.x), Y=sy(st.T); let h='';
   h+=`<line class="vline" x1="${P1(X)}" x2="${P1(X)}" y1="${GM.mt}" y2="${GM.mt+ph}"/>`;
@@ -914,6 +937,12 @@ function drawDyn(e){
     const close=Math.abs(b-a)<40;
     h+=`<text class="tlab" x="${P1(a)}" y="${P1(Y-9)}" text-anchor="${close?'end':'middle'}">b′</text><text class="tlab" x="${P1(b)}" y="${P1(Y-9)}" text-anchor="${close?'start':'middle'}">b″</text>`;
     h+=`<text class="tcomp" x="${P1(a+(close?-3:3))}" y="${GM.mt+ph-6}" text-anchor="${close?'end':'start'}">${fmt(e.tie.l,s.dec)}</text><text class="tcomp" x="${P1(b+(close?3:-3))}" y="${GM.mt+ph-6}" text-anchor="${close?'start':'end'}">${fmt(e.tie.r,s.dec)}</text>`;
+  }
+  const sn=snapAt(st.x);
+  if(sn){
+    h+=`<line class="vsnap" x1="${P1(X)}" x2="${P1(X)}" y1="${GM.mt}" y2="${GM.mt+ph}"/>`;
+    const label=(st.magnet?'Imán · ':'')+sn.n, w=label.length*6.4+18, lx=clamp(X-w/2,GM.ml+2,GM.ml+pw-w-2);
+    h+=`<g class="snaptag"><rect x="${P1(lx)}" y="${GM.mt+6}" width="${P1(w)}" height="22" rx="11"/><text x="${P1(lx+w/2)}" y="${GM.mt+21}" text-anchor="middle">${label}</text></g>`;
   }
   h+=`<circle class="pt" cx="${P1(X)}" cy="${P1(Y)}" r="6.5"/><text class="ptl" x="${P1(X+10)}" y="${P1(Y+16)}">b</text>`;
   $('#dyn').innerHTML=h;
@@ -993,27 +1022,42 @@ function render(){
   MIC.draw(e.micro, st.anim&&st.anim.playing?performance.now()/1000:0);
   updateEvents(); syncSliders();
 }
+const canResume=()=>!!(st.anim && !st.anim.playing && st.path && st.idx!=null && st.anim.prog<1);
 function syncSliders(){
   const s=S(); $('#xIn').value=st.x; $('#tIn').value=st.T;
   $('#xOut').textContent=`${fmt(st.x,s.dec)} ${s.unit}`; $('#tOut').textContent=`${fmt(st.T,0)} °C`;
-  $('#coolBtn').textContent=st.anim&&st.anim.playing?'Pausa':(st.anim&&st.anim.prog<1&&st.path?'Continuar':'Enfriar desde líquido');
+  const b=$('#coolBtn'), playing=!!(st.anim&&st.anim.playing);
+  b.textContent=playing?'Pausa':(canResume()?'Continuar':'Enfriar desde líquido');
+  b.setAttribute('aria-pressed',String(playing));
 }
 
 /* ---------- animación ---------- */
-function stopAnim(){ if(st.anim) st.anim.playing=false; }
+/* st.gen identifica el único bucle de animación válido: cualquier bucle anterior
+   (pausa, nueva aleación, cambio de sistema) se descarta en su siguiente fotograma. */
+function stopAnim(){ st.gen++; if(st.anim) st.anim.playing=false; }
+function runLoop(){ const g=++st.gen; st.anim.playing=true; st.anim.last=performance.now(); requestAnimationFrame(t=>tick(t,g)); }
 function startCool(){
-  const s=S(); st.path=coolPath(s,st.x); st.events=pathEvents(s,st.x,st.path); st.shown=0; st.idx=0;
-  st.anim={prog:0,last:performance.now(),playing:true}; requestAnimationFrame(tick);
+  const s=S(); stopAnim(); st.path=coolPath(s,st.x); st.events=pathEvents(s,st.x,st.path); st.shown=0; st.idx=0;
+  st.anim={prog:0,last:performance.now(),playing:false}; runLoop(); render();
 }
-function tick(now){
-  const a=st.anim; if(!a||!a.playing) return;
+function pauseCool(){ stopAnim(); render(); }
+function resumeCool(){ if(canResume()){ runLoop(); render(); } }
+function toggleCool(){ if(st.anim&&st.anim.playing) pauseCool(); else if(canResume()) resumeCool(); else startCool(); }
+/* Con una curva ya calculada, cambiar T mueve el punto a lo largo de esa curva y permite continuar desde ahí */
+function scrubTo(T){
+  const P=st.path; if(!P||!st.anim) return false;
+  let i=P.findIndex(q=>q.T<=T+1e-9); if(i<0) i=P.length-1;
+  st.idx=i; st.shown=Math.max(st.shown,i); st.T=P[i].T; st.anim.prog=P[i].tn; return true;
+}
+function tick(now,g){
+  const a=st.anim; if(g!==st.gen||!a||!a.playing) return;
   const dur=parseFloat($('#speed').value)||10;
   a.prog=Math.min(1,a.prog+Math.min(0.1,(now-a.last)/1000)/dur); a.last=now;
   const P=st.path; let lo=0, hi=P.length-1; while(lo<hi){const m=(lo+hi+1)>>1; if(P[m].tn<=a.prog) lo=m; else hi=m-1;}
   st.idx=lo; st.shown=Math.max(st.shown,lo); st.T=P[lo].T;
   if(a.prog>=1){ a.playing=false; st.shown=P.length-1; }
   render();
-  if(a.playing) requestAnimationFrame(tick);
+  if(a.playing) requestAnimationFrame(t=>tick(t,g));
 }
 
 /* ---------- paneles inferiores ---------- */
@@ -1053,7 +1097,7 @@ function setSys(id){
   stopAnim(); st.sys=id; const s=S(); st.x=s.def.x; st.T=s.def.T; st.zoom=false; st.path=null; st.events=[]; st.idx=null; st.shown=0; st.anim=null; st.alloy=null;
   st.sel=s.lines[0].id;
   $('#zoomIn').checked=false; $('#zoomWrap').hidden=s.id!=='fec';
-  const xi=$('#xIn'); xi.min=0; xi.step=s.step; xi.max=s.xmax;
+  const xi=$('#xIn'); xi.min=0; xi.step='any'; xi.max=s.xmax;
   const ti=$('#tIn'); ti.min=s.Tmin; ti.max=s.Tmax; ti.step=1;
   $('#sysdesc').textContent=s.desc; $('#sysnote').textContent=s.note;
   renderSysbar(); renderChips(); renderAlloys(); drawDiagram(); render();
@@ -1070,13 +1114,17 @@ function setZoom(on){
 }
 $('#alloyList').addEventListener('click',ev=>{const b=ev.target.closest('[data-alloy]'); if(!b) return; st.alloy=+b.dataset.alloy; stopAnim(); st.x=S().alloys[st.alloy].x;
   if(st.zoom && st.x>2.2) setZoom(false); renderAlloys(); startCool();});
-$('#xIn').addEventListener('input',ev=>{stopAnim(); st.x=+ev.target.value; st.path=null; st.events=[]; st.idx=null; st.alloy=null; renderAlloys(); render();});
-$('#tIn').addEventListener('input',ev=>{stopAnim(); st.T=+ev.target.value; st.idx=null; render();});
-$('#coolBtn').addEventListener('click',()=>{
-  const a=st.anim;
-  if(a&&a.playing){ a.playing=false; syncSliders(); return; }
-  if(a&&st.path&&a.prog<1&&st.idx!=null){ a.playing=true; a.last=performance.now(); requestAnimationFrame(tick); syncSliders(); return; }
-  startCool();
+$('#xIn').addEventListener('input',ev=>{stopAnim(); const s=S(), v=view();
+  const tol=0.008*(v.x1-v.x0); st.x=magnetX(+ev.target.value,null,tol);
+  st.path=null; st.events=[]; st.idx=null; st.alloy=null; renderAlloys(); render();});
+$('#tIn').addEventListener('input',ev=>{stopAnim(); const T=+ev.target.value; if(!scrubTo(T)){ st.T=T; st.idx=null; } render();});
+$('#magnetIn').addEventListener('change',ev=>{ st.magnet=ev.target.checked; render(); });
+$('#coolBtn').addEventListener('click',toggleCool);
+/* Espacio: enfriar / pausa / continuar (si el foco no está en un control) */
+document.addEventListener('keydown',ev=>{
+  if(ev.key!==' '||$('#view-explore').hidden) return;
+  const t=ev.target; if(t && t.closest && t.closest('input,select,button,textarea,a')) return;
+  ev.preventDefault(); toggleCool();
 });
 $('#resetBtn').addEventListener('click',()=>setSys(st.sys));
 $('#zoomIn').addEventListener('change',ev=>setZoom(ev.target.checked));
@@ -1084,9 +1132,11 @@ $('#zoomIn').addEventListener('change',ev=>setZoom(ev.target.checked));
   const svg=$('#dg'); let drag=false;
   const setFrom=ev=>{ if(!G) return; const r=svg.getBoundingClientRect(); const px=ev.clientX-r.left, py=ev.clientY-r.top; const v=G.v, s=S();
     let x=v.x0+(px-GM.ml)/G.pw*(v.x1-v.x0), T=v.T1-(py-GM.mt)/G.ph*(v.T1-v.T0);
-    x=clamp(x,v.x0,v.x1); T=clamp(T,v.T0,v.T1); const stp=s.step; x=Math.round(x/stp)*stp; x=+x.toFixed(4);
-    if(Math.abs(x-st.x)>1e-9){ st.path=null; st.events=[]; st.alloy=null; renderAlloys(); }
-    st.x=x; st.T=Math.round(T); st.idx=null; render(); };
+    x=clamp(x,v.x0,v.x1); T=clamp(T,v.T0,v.T1);
+    x=magnetX(x,ev.pointerType==='touch'?12:7,null);
+    if(Math.abs(x-st.x)>1e-9){ st.path=null; st.events=[]; st.alloy=null; renderAlloys(); st.x=x; st.T=Math.round(T); st.idx=null; }
+    else if(!scrubTo(Math.round(T))){ st.T=Math.round(T); st.idx=null; }
+    render(); };
   svg.addEventListener('pointerdown',ev=>{ stopAnim(); drag=true; try{svg.setPointerCapture(ev.pointerId);}catch(_){} const hit=ev.target.closest&&ev.target.closest('[data-line]'); if(hit) selectLine(hit.dataset.line); setFrom(ev); });
   svg.addEventListener('pointermove',ev=>{ if(drag) setFrom(ev); });
   const end=()=>{drag=false;}; svg.addEventListener('pointerup',end); svg.addEventListener('pointercancel',end);
@@ -1096,8 +1146,9 @@ $('#zoomIn').addEventListener('change',ev=>setZoom(ev.target.checked));
     if(ev.key==='ArrowLeft') dx=-1; else if(ev.key==='ArrowRight') dx=1; else if(ev.key==='ArrowUp') dT=1; else if(ev.key==='ArrowDown') dT=-1; else return;
     ev.preventDefault(); stopAnim();
     if(dx){ st.x=+clamp(st.x+dx*s.step*big,v.x0,v.x1).toFixed(4); st.path=null; st.events=[]; st.alloy=null; renderAlloys(); }
-    if(dT) st.T=clamp(st.T+dT*big*(s.id==='fec'?5:1),v.T0,v.T1);
-    st.idx=null; render();
+    if(dT){ const T=clamp(st.T+dT*big*(s.id==='fec'?5:1),v.T0,v.T1); if(dx||!scrubTo(T)){ st.T=T; st.idx=null; } }
+    if(dx) st.idx=null;
+    render();
   });
 })();
 
