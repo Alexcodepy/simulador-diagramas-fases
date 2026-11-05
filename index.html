@@ -108,11 +108,9 @@ svg.plot{width:100%;height:clamp(320px,58vh,520px);display:block;user-select:non
 .kp{fill:var(--surface);stroke:var(--ink);stroke-width:1.6;cursor:pointer}
 .kp.on{fill:var(--accent);stroke:var(--accent)}
 .vline{stroke:var(--accent);stroke-width:1.2;stroke-dasharray:4 4}
-.vsnap{stroke:var(--accent);stroke-width:2.6;opacity:.85}
-.snaptag rect{fill:var(--accent)}
-.snaptag text{font:600 11.5px var(--f-body);fill:var(--accent-ink)}
+.vsnap{stroke:var(--accent);stroke-width:1.6;opacity:.85}
 .hline{stroke:var(--ink-2);stroke-width:1;stroke-dasharray:2 4;opacity:.8}
-.tie{stroke:var(--ink);stroke-width:2.4}
+.tie{stroke:var(--ink);stroke-width:1.5}
 .drop{stroke:var(--ink-2);stroke-width:1;stroke-dasharray:3 3}
 .tend{fill:var(--ink)}
 .tlab{font:600 13px var(--f-body);fill:var(--ink);paint-order:stroke;stroke:var(--surface);stroke-width:3.5px}
@@ -941,8 +939,6 @@ function drawDyn(e){
   const sn=snapAt(st.x);
   if(sn){
     h+=`<line class="vsnap" x1="${P1(X)}" x2="${P1(X)}" y1="${GM.mt}" y2="${GM.mt+ph}"/>`;
-    const label=(st.magnet?'Imán · ':'')+sn.n, w=label.length*6.4+18, lx=clamp(X-w/2,GM.ml+2,GM.ml+pw-w-2);
-    h+=`<g class="snaptag"><rect x="${P1(lx)}" y="${GM.mt+6}" width="${P1(w)}" height="22" rx="11"/><text x="${P1(lx+w/2)}" y="${GM.mt+21}" text-anchor="middle">${label}</text></g>`;
   }
   h+=`<circle class="pt" cx="${P1(X)}" cy="${P1(Y)}" r="6.5"/><text class="ptl" x="${P1(X+10)}" y="${P1(Y+16)}">b</text>`;
   $('#dyn').innerHTML=h;
