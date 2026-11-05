@@ -140,6 +140,10 @@ svg.plot{width:100%;height:clamp(320px,58vh,520px);display:block;user-select:non
 .react .prog{height:6px;border-radius:3px;background:var(--surface);margin-top:6px;overflow:hidden}
 .react .prog i{display:block;height:100%;background:var(--molten)}
 .lv{font-size:13.5px;margin:2px 0 0;color:var(--ink-2)}
+.why{font-size:13px;line-height:1.45;background:var(--surface-2);border-radius:8px;padding:9px 11px;color:var(--ink-2)}
+.why p{margin:0}
+.why b{color:var(--ink)}
+.why ul{margin:6px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:2px;color:var(--ink)}
 .lv b{color:var(--ink);font-weight:600}
 math{font-size:1.05em}
 math[display="block"]{margin:6px 0}
@@ -235,10 +239,11 @@ td.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
       <aside class="panel readout">
         <div class="ro-top"><div class="ro-coord mono" id="roCoord"></div><span class="chip" id="roZone"></span></div>
         <div class="react" id="roReact" hidden></div>
-        <h3 class="h3">Fases presentes</h3>
+        <h3 class="h3">Fases presentes (regla de la palanca)</h3>
         <ul class="phases" id="roPhases"></ul>
+        <div class="why" id="roWhy" hidden></div>
         <div id="roLever"></div>
-        <h3 class="h3">Microestructura (vista al microscopio)</h3>
+        <h3 class="h3">Constituyentes (vista al microscopio)</h3>
         <div class="scope-row"><div class="scope"><canvas id="ms" width="180" height="180"></canvas></div><ul class="legend" id="roMicro"></ul></div>
         <div id="roCLever"></div>
       </aside>
@@ -352,7 +357,11 @@ const MOL=[238,116,40], CUNI=[206,176,142], PBa=[98,106,118], SNb=[226,229,233],
 const FER=[238,233,222], AUS=[226,192,150], CEM=[252,251,246], PDK=[66,58,52];
 const L1=f=>({key:'L',slot:'rest',name:'Líquido',assign:'core',look:'liq',c1:MOL,f});
 const lay=(o,f)=>Object.assign({},o,{f});
-const R=o=>Object.assign({fL:0,fG:0,tie:null,reacting:false,clever:null},o);
+const R=o=>Object.assign({fL:0,fG:0,tie:null,reacting:false,clever:null,why:null},o);
+/* «why»: explica la diferencia entre fases (regla de la palanca) y constituyentes (microscopio) */
+/* reparto redondeado de forma que las partes mostradas sumen exactamente el total mostrado */
+const r3=v=>Math.round(v*1000)/1000, split=(tot,a)=>[pct(r3(a)),pct(Math.max(0,r3(tot)-r3(a)))];
+const whyHTML=(intro,lines)=>`<p>${intro}</p>${lines&&lines.length?`<ul>${lines.map(l=>`<li>${l}</li>`).join('')}</ul>`:''}`;
 
 const SYS={};
 
@@ -434,13 +443,23 @@ function makeEut(c){
     if(x<=ca) return onlyA(x);
     if(x>=cb) return onlyB(x);
     const fb=clamp((x-ca)/(cb-ca),0,1);
-    let micro, clever=null;
+    let micro, clever=null, why=null;
+    const EW=(cons,lines)=>whyHTML(`Al microscopio se ven <b>constituyentes</b>: ${cons}. El eutéctico no es una fase: es una mezcla fina de ${c.aPh} y ${c.bPh}. Por eso las <b>fases</b> son solo ${c.aPh} y ${c.bPh}:`,lines);
     if(x<aMax) micro=[lay(Object.assign({},AP,{name:c.aOnly}),1-fb),lay({key:'bpr',slot:'pr',name:c.bPh+' precipitada (al cruzar el solvus)',assign:'bound',look:'solid',c1:c.cb},fb)];
     else if(x>bMax) micro=[lay(Object.assign({},BP,{name:c.bOnly}),fb),lay({key:'apr',slot:'pr',name:c.aPh+' precipitada (al cruzar el solvus)',assign:'bound',look:'solid',c1:c.ca},1-fb)];
-    else if(Math.abs(x-xE)<0.05) micro=[lay(EU,1)];
-    else if(x<xE){ const fp=(xE-x)/(xE-aMax); micro=[lay(Object.assign({},AP,{name:c.aPrim}),fp),lay(EU,1-fp)]; clever={name:'eutéctico',a:x,b:aMax,c:xE,d:aMax,val:1-fp}; }
-    else { const fp=(x-xE)/(bMax-xE); micro=[lay(Object.assign({},BP,{name:c.bPrim}),fp),lay(EU,1-fp)]; clever={name:'eutéctico',a:bMax,b:x,c:bMax,d:xE,val:1-fp}; }
-    return R({key:'a+b',zone:'s2',name:c.abName,phases:[phA(ca,1-fb),phB(cb,fb)],micro,clever,
+    else if(Math.abs(x-xE)<0.05){ micro=[lay(EU,1)]; why=EW('100 % eutéctico',[`${c.aPh} ${pct(1-fb)}: todo dentro del eutéctico`,`${c.bPh} ${pct(fb)}: todo dentro del eutéctico`]); }
+    else {
+      const hypo=x<xE, fp=hypo?(xE-x)/(xE-aMax):(x-xE)/(bMax-xE), E=1-fp;
+      const inA=E*(cb-xE)/(cb-ca), inB=E*(xE-ca)/(cb-ca), extra=v=>v>0.0005;
+      if(hypo){ micro=[lay(Object.assign({},AP,{name:c.aPrim}),fp),lay(EU,E)]; clever={name:'eutéctico',a:x,b:aMax,c:xE,d:aMax,val:E};
+        const pre=fb-inB;
+        why=EW(`${c.aPrim} + eutéctico`,[`${c.aPh} ${pct(1-fb)} = ${split(1-fb,inA)[1]} como ${c.aPrim} + ${split(1-fb,inA)[0]} dentro del eutéctico`,`${c.bPh} ${pct(fb)} = ${extra(pre)?split(fb,inB)[0]:pct(fb)} dentro del eutéctico`+(extra(pre)?` + ${split(fb,inB)[1]} precipitada en la ${c.aPh} primaria al cruzar el solvus`:'')]);
+      } else { micro=[lay(Object.assign({},BP,{name:c.bPrim}),fp),lay(EU,E)]; clever={name:'eutéctico',a:bMax,b:x,c:bMax,d:xE,val:E};
+        const pre=(1-fb)-inA;
+        why=EW(`${c.bPrim} + eutéctico`,[`${c.bPh} ${pct(fb)} = ${split(fb,inB)[1]} como ${c.bPrim} + ${split(fb,inB)[0]} dentro del eutéctico`,`${c.aPh} ${pct(1-fb)} = ${extra(pre)?split(1-fb,inA)[0]:pct(1-fb)} dentro del eutéctico`+(extra(pre)?` + ${split(1-fb,inA)[1]} precipitada en la ${c.bPh} primaria al cruzar el solvus`:'')]);
+      }
+    }
+    return R({key:'a+b',zone:'s2',name:c.abName,phases:[phA(ca,1-fb),phB(cb,fb)],micro,clever,why,
       tie:{l:ca,r:cb,ln:c.aPh,rn:c.bPh,lLine:c.solvA?'solvus':'eje: '+c.A+' puro',rLine:c.solvB?'solvus':'eje: '+c.B+' puro'}});
   };
 }
@@ -599,25 +618,29 @@ function eq(x,T){
     const fg=clamp((XC-x)/(XC-xm),0,1), ph=[pG(xm,fg),pC(1-fg)], tie={l:xm,r:XC,ln:'Austenita γ',rn:'Cementita',lLine:'Acm',rLine:'cementita, 6,69 %'};
     if(x<=2.1) return R({key:'γ+Fe3C',zone:'s2',name:'Austenita + cementita',phases:ph,micro:[lay(FE.Cs,1-fg),lay(FE.G,fg)],fG:fg,tie});
     if(x<4.3-1e-6){ const fp=(4.3-x)/2.2, cs=fp*(2.1-xm)/(XC-xm);
-      return R({key:'γ+Ld+Fe3C',zone:'s3',name:'Austenita + ledeburita + cementita',phases:ph,micro:[lay(FE.Gp,fp-cs),lay(FE.Csr,cs),lay(FE.Ld,1-fp)],fG:fg,tie}); }
-    if(x<=4.3+1e-6) return R({key:'Ld',zone:'s3',name:'Ledeburita',phases:ph,micro:[lay(FE.Ld,1)],fG:fg,tie});
+      return R({key:'γ+Ld+Fe3C',zone:'s3',name:'Austenita + ledeburita + cementita',phases:ph,micro:[lay(FE.Gp,fp-cs),lay(FE.Csr,cs),lay(FE.Ld,1-fp)],fG:fg,tie,why:whyHTML('La zona se nombra por sus <b>constituyentes</b>. La ledeburita no es una fase: es una mezcla de austenita y cementita. Las <b>fases</b> son solo austenita γ y cementita.')}); }
+    if(x<=4.3+1e-6) return R({key:'Ld',zone:'s3',name:'Ledeburita',phases:ph,micro:[lay(FE.Ld,1)],fG:fg,tie,why:whyHTML('La zona se nombra por sus <b>constituyentes</b>. La ledeburita no es una fase: es una mezcla de austenita y cementita. Las <b>fases</b> son solo austenita γ y cementita.')});
     const fc=(x-4.3)/(XC-4.3);
-    return R({key:'Ld+Fe3C',zone:'s3',name:'Ledeburita + cementita',phases:ph,micro:[lay(FE.Cp,fc),lay(FE.Ld,1-fc)],fG:fg,tie});
+    return R({key:'Ld+Fe3C',zone:'s3',name:'Ledeburita + cementita',phases:ph,micro:[lay(FE.Cp,fc),lay(FE.Ld,1-fc)],fG:fg,tie,why:whyHTML('La zona se nombra por sus <b>constituyentes</b>. La ledeburita no es una fase: es una mezcla de austenita y cementita. Las <b>fases</b> son solo austenita γ y cementita.')});
   }
   const xf=FL.X(T);
   if(x<=xf) return R({key:'α',zone:'s1',name:'Ferrita (α)',phases:[pA(x,1)],micro:[lay(FE.F,1)]});
   const fc=clamp((x-xf)/(XC-xf),0,1), ph=[pA(xf,1-fc),pC(fc)], tie={l:xf,r:XC,ln:'Ferrita α',rn:'Cementita',lLine:'límite de la ferrita',rLine:'cementita, 6,69 %'};
   if(x<0.025) return R({key:'α+Fe3C(III)',zone:'s2',name:'Ferrita + cementita terciaria',phases:ph,micro:[lay(FE.F,1-fc),lay(FE.C3,fc)],tie});
+  const WP=cons=>`La zona se nombra por sus <b>constituyentes</b>, lo que se ve al microscopio: ${cons}. Pero la <b>perlita no es una fase</b>: son láminas de ferrita y cementita. Por eso las <b>fases</b> son solo dos, ferrita α y cementita, y así las reparte la regla de la palanca:`;
   if(x<0.89-0.004){ const fP=clamp((x-0.025)/(0.89-0.025),0,1);
-    return R({key:'α+P',zone:'s2',name:'Ferrita + perlita',phases:ph,micro:[lay(FE.Fp,1-fP),lay(FE.P,fP)],tie,clever:{name:'perlita',a:x,b:0.025,c:0.89,d:0.025,val:fP}}); }
-  if(x<=0.89+0.004) return R({key:'P',zone:'s2',name:'Perlita',phases:ph,micro:[lay(FE.P,1)],tie});
+    return R({key:'α+P',zone:'s2',name:'Ferrita + perlita',phases:ph,micro:[lay(FE.Fp,1-fP),lay(FE.P,fP)],tie,clever:{name:'perlita',a:x,b:0.025,c:0.89,d:0.025,val:fP},
+      why:whyHTML(WP('ferrita proeutectoide + perlita'),[`Ferrita α ${pct(1-fc)} = ${split(1-fc,1-fP)[0]} proeutectoide + ${split(1-fc,1-fP)[1]} dentro de la perlita`,`Cementita ${pct(fc)} = toda dentro de la perlita`])}); }
+  if(x<=0.89+0.004) return R({key:'P',zone:'s2',name:'Perlita',phases:ph,micro:[lay(FE.P,1)],tie,
+      why:whyHTML(WP('100 % perlita'),[`Ferrita α ${pct(1-fc)}: toda dentro de la perlita`,`Cementita ${pct(fc)}: toda dentro de la perlita`])});
   if(x<=2.1){ const fcs=(x-0.89)/(XC-0.89);
-    return R({key:'P+Fe3C',zone:'s2',name:'Perlita + cementita',phases:ph,micro:[lay(FE.Cs,fcs),lay(FE.P,1-fcs)],tie,clever:{name:'cementita secundaria',a:x,b:0.89,c:XC,d:0.89,val:fcs}}); }
+    return R({key:'P+Fe3C',zone:'s2',name:'Perlita + cementita',phases:ph,micro:[lay(FE.Cs,fcs),lay(FE.P,1-fcs)],tie,clever:{name:'cementita secundaria',a:x,b:0.89,c:XC,d:0.89,val:fcs},
+      why:whyHTML(WP('perlita + cementita secundaria'),[`Ferrita α ${pct(1-fc)}: toda dentro de la perlita`,`Cementita ${pct(fc)} = ${split(fc,fcs)[0]} secundaria (red en bordes de grano) + ${split(fc,fcs)[1]} dentro de la perlita`])}); }
   if(x<4.3-1e-6){ const fp=(4.3-x)/2.2, cs=fp*(2.1-0.89)/(XC-0.89);
-    return R({key:'P+Ldt+Fe3C',zone:'s3',name:'Perlita + ledeburita + cementita',phases:ph,micro:[lay(FE.Pp,fp-cs),lay(FE.Csr,cs),lay(FE.Ldt,1-fp)],tie}); }
-  if(x<=4.3+1e-6) return R({key:'Ldt',zone:'s3',name:'Ledeburita transformada',phases:ph,micro:[lay(FE.Ldt,1)],tie});
+    return R({key:'P+Ldt+Fe3C',zone:'s3',name:'Perlita + ledeburita + cementita',phases:ph,micro:[lay(FE.Pp,fp-cs),lay(FE.Csr,cs),lay(FE.Ldt,1-fp)],tie,why:whyHTML('La zona se nombra por sus <b>constituyentes</b> (perlita, ledeburita, cementita). Ni la perlita ni la ledeburita son fases: son mezclas de ferrita y cementita. Las <b>fases</b> son solo ferrita α y cementita.')}); }
+  if(x<=4.3+1e-6) return R({key:'Ldt',zone:'s3',name:'Ledeburita transformada',phases:ph,micro:[lay(FE.Ldt,1)],tie,why:whyHTML('La zona se nombra por sus <b>constituyentes</b> (perlita, ledeburita, cementita). Ni la perlita ni la ledeburita son fases: son mezclas de ferrita y cementita. Las <b>fases</b> son solo ferrita α y cementita.')});
   const fc2=(x-4.3)/(XC-4.3);
-  return R({key:'Ldt+Fe3C',zone:'s3',name:'Ledeburita + cementita',phases:ph,micro:[lay(FE.Cp,fc2),lay(FE.Ldt,1-fc2)],tie});
+  return R({key:'Ldt+Fe3C',zone:'s3',name:'Ledeburita + cementita',phases:ph,micro:[lay(FE.Cp,fc2),lay(FE.Ldt,1-fc2)],tie,why:whyHTML('La zona se nombra por sus <b>constituyentes</b> (perlita, ledeburita, cementita). Ni la perlita ni la ledeburita son fases: son mezclas de ferrita y cementita. Las <b>fases</b> son solo ferrita α y cementita.')});
 }
 SYS.fec={
   id:'fec', short:'Fe–C', kind:'Aceros y fundiciones', A:'Fe', B:'C', unit:'% C', dec:2, xmax:6.69, step:0.01, Tmin:400, Tmax:1650, Tlow:500, L2:true,
@@ -747,7 +770,7 @@ function blend(a,b,p){
   const phases=[], ids={};
   for(const ph of a.phases){ ids[ph.id]=Object.assign({},ph,{f:(1-p)*ph.f}); phases.push(ids[ph.id]); }
   for(const ph of b.phases){ if(ids[ph.id]){ ids[ph.id].f+=p*ph.f; } else { const o=Object.assign({},ph,{f:p*ph.f}); ids[ph.id]=o; phases.push(o);} }
-  return Object.assign({},b,{micro,phases:phases.filter(q=>q.f>0.0005),fL:(1-p)*a.fL+p*b.fL,reacting:true,p,tie:null,clever:null});
+  return Object.assign({},b,{micro,phases:phases.filter(q=>q.f>0.0005),fL:(1-p)*a.fL+p*b.fL,reacting:true,p,tie:null,clever:null,why:null});
 }
 function eqAtStep(s,x,pt){
   if(!pt.jump) return s.eq(x,pt.T);
@@ -984,6 +1007,7 @@ function updateReadout(e){
   if(e.reacting && e.rx){ rr.hidden=false; rr.innerHTML=`<b>${e.rx.name} · temperatura constante</b>${e.rx.text}<div class="prog"><i style="width:${(100*e.p).toFixed(1)}%"></i></div><span class="small">Transformado: ${pct(e.p)}</span>`; }
   else rr.hidden=true;
   $('#roPhases').innerHTML=e.phases.map(p=>`<li><span class="sw" style="background:${rgb(p.col)}"></span><span>${p.name}</span><span class="pc mono">${fmt(p.c,s.dec)} ${s.unit}</span><span class="pf mono">${pct(p.f)}</span><span class="bar"><i style="width:${(100*p.f).toFixed(1)}%"></i></span></li>`).join('');
+  const rw=$('#roWhy'); rw.innerHTML=(!e.reacting&&e.why)?e.why:''; rw.hidden=!rw.innerHTML;
   $('#roLever').innerHTML=leverHTML(s,e);
   $('#roMicro').innerHTML=e.micro.filter(l=>l.f>0.0005).map(l=>`<li><span class="sw" style="${swatchCSS(l)}"></span><span>${l.name}</span><span class="mono">${pct(l.f)}</span></li>`).join('');
   $('#roCLever').innerHTML=cleverHTML(s,e);
