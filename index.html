@@ -5,9 +5,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 <style>
-/* Layout: cabecera → selector de sistema → banco de trabajo (diagrama | curva de enfriamiento | lectura) → paneles de referencia */
+/* Tema único claro (fondo blanco en todos los navegadores, aunque el sistema esté en modo oscuro).
+   Layout: cabecera → selector de sistema → banco de trabajo (diagrama | curva de enfriamiento | lectura) → paneles de referencia */
 :root{
-  --bg:#edf0f2; --surface:#ffffff; --surface-2:#f4f6f8; --ink:#17202a; --ink-2:#465361; --muted:#6f7d8b; --rule:#d3dae0; --rule-2:#e4e9ed;
+  color-scheme:light;
+  --bg:#ffffff; --surface:#ffffff; --surface-2:#f4f6f8; --ink:#17202a; --ink-2:#465361; --muted:#6f7d8b; --rule:#d3dae0; --rule-2:#e4e9ed;
   --accent:#1d5fa8; --accent-ink:#ffffff; --accent-soft:rgba(29,95,168,.10);
   --molten:#e5621b;
   --c-liq:#b4225a; --c-sol:#1f72c0; --c-iso:#2b3a48; --c-solv:#7b4bb3; --c-trans:#0d8577; --c-lim:#8a96a3;
@@ -15,24 +17,6 @@
   --f-display:"IBM Plex Sans Condensed","Arial Narrow",system-ui,sans-serif;
   --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
-}
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --bg:#0f141a; --surface:#161d25; --surface-2:#1b232d; --ink:#e5eaef; --ink-2:#a9b5c1; --muted:#81909e; --rule:#2a3540; --rule-2:#222c36;
-    --accent:#6fa9f2; --accent-ink:#0b1420; --accent-soft:rgba(111,169,242,.15);
-    --molten:#ff8a3d;
-    --c-liq:#f0679a; --c-sol:#5fa8f5; --c-iso:#c9d3dc; --c-solv:#b28cf0; --c-trans:#3cc6b2; --c-lim:#6c7987;
-    --z-liq:rgba(255,138,61,.17); --z-mix:rgba(255,138,61,.07); --z-s1:rgba(95,168,245,.09); --z-s2:rgba(201,211,220,.05); --z-s3:rgba(178,140,240,.09);
-    color-scheme:dark;
-  }
-}
-:root[data-theme="dark"]{
-  --bg:#0f141a; --surface:#161d25; --surface-2:#1b232d; --ink:#e5eaef; --ink-2:#a9b5c1; --muted:#81909e; --rule:#2a3540; --rule-2:#222c36;
-  --accent:#6fa9f2; --accent-ink:#0b1420; --accent-soft:rgba(111,169,242,.15);
-  --molten:#ff8a3d;
-  --c-liq:#f0679a; --c-sol:#5fa8f5; --c-iso:#c9d3dc; --c-solv:#b28cf0; --c-trans:#3cc6b2; --c-lim:#6c7987;
-  --z-liq:rgba(255,138,61,.17); --z-mix:rgba(255,138,61,.07); --z-s1:rgba(95,168,245,.09); --z-s2:rgba(201,211,220,.05); --z-s3:rgba(178,140,240,.09);
-  color-scheme:dark;
 }
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
